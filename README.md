@@ -9,7 +9,7 @@ PDO + mysql, PDO + sqlite3
 ## オレオレライブラリです
 ながれるようにチェーンでSqlをBuildするとか、Joinがすばらしくできるとか、そういうものはありません。
 設計の自由度もありません。
-3年位前にARをつかってから、ちゃっちゃっとモデルを作るのが楽だなーっておもって、当時の知識で（パラダイムの変遷を理解せず）書いてます。
+5年位は前にActiveRecordをつかってから、ちゃっちゃっとモデルを作るのが楽だなーっておもって、当時の知識で（パラダイムの変遷を理解せず）書いてます。
 しかしながら、find()とかjoin()とかつなぐのかったるいSQLで書かせろって思ったので、SQLBuilder系は作っていません。
 
 
@@ -42,6 +42,9 @@ class Post extends CFEDb2{
     public function as_you_like(){
         return $this->val('id').' as you like!';
     }
+    static function getMySpecial(){
+        return static::getById(3);
+    }
 }
 ```
 
@@ -55,7 +58,7 @@ class DbConfig {
     public $_db_name	= "";
     public $_db_user	= "";
     public $_db_pass	= "";
-    public $_db_pre_exec = false;// alter "SET NAMES UTF8"
+    public $_db_pre_exec = false; // ex: "SET NAMES UTF8"
     public $_db_reuse_pdo = true;
     public $_db_reuse_pdo_global_name = 'CFEDb2_DBH';
     public $DEBUG = true;
