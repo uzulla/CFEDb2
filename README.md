@@ -20,6 +20,30 @@ PDO + mysql, PDO + sqlite3
 
 という変わった人なら本ライブラリも良いかもしれませんが、自作したほうが良いと思います。
 
+## 典型的な使い方
+```
+        $post = new Post();
+        $post->val('text', 'this is text');
+        $post->val('num', 123);
+        $post->saveItem();
+
+        $post2 = Post::getById(1);
+        echo $post2->val('text');
+        
+        $post3 = Post::getBySome('text', 'this is text');
+        if(is_null($post3)){
+            echo "notfound";
+        }
+        
+        $post_list = Post::getsBySQL('SELECT * FROM post WHERE id>:id', array('id'=>5));
+        foreach($post_list as $p){
+            echo $p->val('id');
+        }
+        
+        $post->deleteItem();
+
+```
+まあ、テストコードを見てください。
 
 
 ## モデルクラス例
