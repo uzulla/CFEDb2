@@ -116,7 +116,7 @@ class CFEDb2 {
             }
             $this->PDO = $GLOBALS[$this->dbconfig->_db_reuse_pdo_global_name];
         }else{
-            static::getPDO(new DbConfig());
+            $this->PDO = static::getPDO(new DbConfig());
         }
 
         return $this;
