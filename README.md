@@ -45,14 +45,32 @@ PDO + mysql, PDO + sqlite3
 ```
 まあ、テストコードを見てください。
 
+## インストール
+DLして適当に配置する、
+
+または、Composerで
+```
+{
+	"repositories": [
+		{
+			"type": "vcs",
+			"url": "https://github.com/uzulla/CFEDb2"
+		}
+	],
+	"require": {
+		"uzulla/cfedb2": "dev-master"
+	}
+}
+```
+(まだバージョン番号降るような状態じゃないので、dev-master指定してください)
+
 
 ## モデルクラス例
-
 ```
 <?php
-require_once('CFEDb2.php');
+require_once('../lib/Uzulla/CFEDb2.php'); # ComposerのAutoloaderをつかっているなら不要
 
-class Post extends CFEDb2{
+class Post extends \Uzulla\CFEDb2{
     static $tablename = 'post';
     static $pkeyname = 'id';
     public function __construct() {
@@ -72,22 +90,26 @@ class Post extends CFEDb2{
 }
 ```
 
+
 ## DB接続情報設定
-コード全体の何処かに、以下の設定用のクラスが必要です。
+以下の設定用のクラスが必要です。
 
 ```
-class DbConfig {
-    public $_db_type	= "sqlite";
-    public $_db_sv      = "test.db";
-    public $_db_name	= "";
-    public $_db_user	= "";
-    public $_db_pass	= "";
-    public $_db_pre_exec = false; // ex: "SET NAMES UTF8"
-    public $_db_reuse_pdo = true;
-    public $_db_reuse_pdo_global_name = 'CFEDb2_DBH';
-    public $DEBUG = true;
+namespace Uzulla{
+    class DbConfig {
+        public $_db_type    = "sqlite";
+        public $_db_sv      = "test.db";
+        public $_db_name    = "";
+        public $_db_user    = "";
+        public $_db_pass    = "";
+        public $_db_pre_exec = false;//"SET NAMES UTF8"
+        public $_db_reuse_pdo = true;
+        public $_db_reuse_pdo_global_name = 'CFEDb2_DBH';
+        public $DEBUG = true;
+    }
 }
 ```
+(なんでクラスであってハッシュじゃないかって？4年位前の私に聞きたいです)
 
 
 ## 使わない方が無難です
