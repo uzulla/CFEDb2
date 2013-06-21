@@ -17,7 +17,7 @@
     },
     "autoload": {
         "psr-0": {
-            "Uzulla\\CFEDb2\\": "lib/"
+            "Uzulla\\CFEDb2": "lib/"
         }
     }
 }
