@@ -2,9 +2,9 @@
 /*
 this is CFEDb2 sample.
 */
-require_once('CFEDb2.php');
+require_once('../lib/Uzulla/CFEDb2.php');
 
-class Post extends CFEDb2{
+class Post extends \Uzulla\CFEDb2{
 
     static $tablename = 'post';
     static $pkeyname = 'id';

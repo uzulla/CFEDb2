@@ -1,3 +1,3 @@
 .idea
-test.db
-phperror.log
+t/test.db
+t/phperror.log

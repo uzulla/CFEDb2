@@ -21,6 +21,8 @@
  * 20130618 コード大改修、エラー周りを例外化、error_log化、Static化
  */
 
+namespace Uzulla;
+
 //class DbConfig {
 //    public $_db_type	= "sqlite";
 //    public $_db_sv      = "test.db";
@@ -129,11 +131,11 @@ class CFEDb2 {
         }
         try {
             if ($config->_db_type == 'sqlite') {
-                $PDO = new PDO("{$config->_db_type}:{$config->_db_sv}", '');
+                $PDO = new \PDO("{$config->_db_type}:{$config->_db_sv}", '');
             } elseif($config->_db_type == 'mysql') {
-                $PDO = new PDO("{$config->_db_type}:host={$config->_db_sv};dbname={$config->_db_name}", $config->_db_user, $config->_db_pass);
+                $PDO = new \PDO("{$config->_db_type}:host={$config->_db_sv};dbname={$config->_db_name}", $config->_db_user, $config->_db_pass);
             } else {
-                throw new PDOException('invalid db_type');
+                throw new \PDOException('invalid db_type');
             }
 
             if($config->_db_pre_exec) {
@@ -142,7 +144,7 @@ class CFEDb2 {
 
         } catch (PDOException $e) {
             static::log(array("fail db conn", $e->getMessage(), $config));
-            throw new Exception('fail db conn');
+            throw new \Exception('fail db conn');
         }
         return $PDO;
     }
@@ -163,16 +165,16 @@ class CFEDb2 {
         $sth = $_tmp->PDO->prepare($sql);
         if(!$sth){
             static::log(array($sql,$params,$sth));
-            throw new Exception('DB ERROR: null sth, invalid sql?');
+            throw new \Exception('DB ERROR: null sth, invalid sql?');
         }
 
         try{
             $sth->execute($params);
         } catch (PDOException $e) {
             static::log(array("DB ERROR: simpleQuery",$e->getMessage(),$sql,$params,$_tmp->PDO->errorInfo(),$sth->errorInfo()));
-            throw new Exception('DB ERROR: execute error');
+            throw new \Exception('DB ERROR: execute error');
         }
-        $items = $sth->fetchAll(PDO::FETCH_ASSOC);
+        $items = $sth->fetchAll(\PDO::FETCH_ASSOC);
         return $items;
     }
     static function simpleQueryOne($sql, $params, $PDO=null){
@@ -277,7 +279,7 @@ class CFEDb2 {
         } elseif($config->_db_type == 'mysql') {
             $rand_func_name = "random()";
         } else {
-            throw new PDOException('invalid db_type');
+            throw new \PDOException('invalid db_type');
         }
 
         $items = static::simpleQuery('SELECT * FROM ' . static::$tablename . ' ORDER BY '.$rand_func_name.' LIMIT 1', array());
@@ -415,7 +417,7 @@ class CFEDb2 {
         }
         if (!$rtn) {
             static::log(array("DB ERROR: insert fail",$sql,$params,$this->PDO->errorInfo(),$sth->errorInfo()));
-            throw new Exception('DB ERROR: insert fail');
+            throw new \Exception('DB ERROR: insert fail');
         }else{
             return true;
         }
@@ -426,7 +428,7 @@ class CFEDb2 {
 
     public function saveItem($forceInsert=FALSE) {
         if ($this->dbconfig->DEBUG) {
-            $this->PDO->setAttribute( PDO::ATTR_ERRMODE, PDO::ERRMODE_WARNING );
+            $this->PDO->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_WARNING );
         }
 
         $isInsert = 0;
@@ -436,13 +438,13 @@ class CFEDb2 {
                 $sth = $this->PDO->prepare($sql);
                 if(!$sth){
                     static::log(array($sql,$sth));
-                    throw new Exception('DB ERROR: null sth, invalid sql?');
+                    throw new \Exception('DB ERROR: null sth, invalid sql?');
                 }
                 $params = $this->createKVArray('insert', $forceInsert);
                 $state = $sth->execute($params);
             }catch(PDOException $e){
                 static::log(array("DB ERROR: simpleQuery",$e->getMessage(),$sql,$params,$this->PDO->errorInfo(),$sth->errorInfo()));
-                throw new Exception('DB ERROR: execute error');
+                throw new \Exception('DB ERROR: execute error');
             }
             $this->lastRowCount = $sth->rowCount();
             $isInsert = 1;
@@ -451,14 +453,14 @@ class CFEDb2 {
             $sth = $this->PDO->prepare($sql);
             if(!$sth){
                 static::log(array($sql,$sth));
-                throw new Exception('DB ERROR: null sth, invalid sql?');
+                throw new \Exception('DB ERROR: null sth, invalid sql?');
             }
             try{
                 $params = $this->createKVArray('update');
                 $state = $sth->execute($params);
             }catch (PDOException $e){
                 static::log(array("DB ERROR: ",$e->getMessage(),$sql,$params,$this->PDO->errorInfo(),$sth->errorInfo()));
-                throw new Exception('DB ERROR: execute error');
+                throw new \Exception('DB ERROR: execute error');
             }
             $this->lastRowCount = $sth->rowCount();
         }
@@ -467,7 +469,7 @@ class CFEDb2 {
         if ($state) {
             if ($isInsert && $id==0) {
                 static::log(array("DB ERROR: insert fail",$sql,$params,$this->PDO->errorInfo(),$sth->errorInfo()));
-                throw new Exception('DB ERROR: insert fail');
+                throw new \Exception('DB ERROR: insert fail');
             }
             if(!$isInsert){
                 $id = $this->val('id');
@@ -477,7 +479,7 @@ class CFEDb2 {
             return $this;
 
         } else {
-            throw new Exception('DB ERROR: save fail');
+            throw new \Exception('DB ERROR: save fail');
         }
     }
 

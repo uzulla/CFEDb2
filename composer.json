@@ -1,0 +1,23 @@
+{
+    "name": "uzulla/cfedb2",
+    "description": "eccentric and risky, outdated ORM for PHP.",
+    "keywords": ["orm", "db"],
+    "type": "library",
+    "homepage": "http://github.com/uzulla/CFEDb2",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Junichi Ishida aka uzulla",
+            "email": "uzulla@himitsukichi.com",
+            "homepage": "http://twitter.com/uzulla/"
+        }
+    ],
+    "require": {
+        "php": ">=5.3"
+    },
+    "autoload": {
+        "psr-0": {
+            "Uzulla_CFEDb2": "lib/"
+        }
+    }
+}

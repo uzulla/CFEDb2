@@ -1,24 +1,14 @@
 <?php
-require_once 'Post.php';
+require_once '../example/Post.php';
+require_once '../example/DBConfig.php';
 ini_set('error_log', __DIR__ . '/phperror.log');
 
-class DbConfig {
-    public $_db_type	= "sqlite";
-    public $_db_sv      = "test.db";
-    public $_db_name	= "";
-    public $_db_user	= "";
-    public $_db_pass	= "";
-    public $_db_pre_exec = false;//"SET NAMES UTF8"
-    public $_db_reuse_pdo = true;
-    public $_db_reuse_pdo_global_name = 'CFEDb2_DBH';
-    public $DEBUG = true;
-}
 
 class PostTest extends PHPUnit_Framework_TestCase{
 
     protected function setUp(){
         try {
-            $dbh = CFEDb2::getPDO();
+            $dbh = \Uzulla\CFEDb2::getPDO();
 
             $dbh->exec("DROP TABLE IF EXISTS post ;");
 
@@ -76,7 +66,7 @@ class PostTest extends PHPUnit_Framework_TestCase{
      * @expectedException Exception
      */
     public function testBadConfig(){
-        $config = new DbConfig();
+        $config = new \Uzulla\DbConfig();
         $config->_db_type = "GREATFUL_DB_ENGINE";
         $PDO = Post::getPdo($config);
     }
@@ -156,7 +146,7 @@ class PostTest extends PHPUnit_Framework_TestCase{
     }
 
     public function testTransactionRollback(){
-        $PDO = CFEDb2::getPDO();
+        $PDO = \Uzulla\CFEDb2::getPDO();
 
         $post = Post::getById(1, $PDO);
         $beforeTransaction = $post->val('text');
