@@ -170,5 +170,14 @@ class PostTest extends PHPUnit_Framework_TestCase{
 
     }
 
+    public function testGetsHashByList(){
+        $post_list = Post::getsAll();
+	$hash_array = Post::getsHashByList($post_list);
 
+        $this->assertEquals(5, count($hash_array));
+	$this->assertEquals(true, is_array($hash_array[0]));
+        $this->assertEquals(5, count($hash_array[0]));
+        $this->assertEquals(true, isset($hash_array[0]['num']));
+	$this->assertEquals(true, is_string($hash_array[1]['text']));
+    }
 }

@@ -19,6 +19,7 @@
  * 20120719 loadFromRequest()追加
  * 20130618 CFEDb2にフォーク、過去互換性放棄
  * 20130618 コード大改修、エラー周りを例外化、error_log化、Static化
+ * 20130704 getsHashByListを追加 
  */
 
 namespace Uzulla;
@@ -157,6 +158,19 @@ class CFEDb2 {
     }
     public function transactionRollback(){
         $this->PDO->query('ROLLBACK;');
+    }
+
+    //配列になったCFEDb2のインスタンスを、普通のハッシュ配列に変換します。 
+    static function getsHashByList($list){
+        $rtn = array();
+        foreach($list as $item){
+            $tmparray = array();
+            foreach($item->values as $k=>$v){
+                $tmparray[$k] = $v;
+            }
+            $rtn[] = $tmparray;
+        }
+        return $rtn;
     }
 
     //SQL指定クエリ
