@@ -19,7 +19,8 @@
  * 20120719 loadFromRequest()追加
  * 20130618 CFEDb2にフォーク、過去互換性放棄
  * 20130618 コード大改修、エラー周りを例外化、error_log化、Static化
- * 20130704 getsHashByListを追加 
+ * 20130704 getsHashByListを追加
+ * 20130706 validatorを拡張
  */
 
 namespace Uzulla;
@@ -162,6 +163,9 @@ class CFEDb2 {
 
     //配列になったCFEDb2のインスタンスを、普通のハッシュ配列に変換します。 
     static function getsHashByList($list){
+        if(is_null($list)){
+            return array();
+        }
         $rtn = array();
         foreach($list as $item){
             $tmparray = array();
@@ -377,37 +381,37 @@ class CFEDb2 {
     public function validate(){
         $error_list = array();
         $item_list = $this->validateData;
-        $item = array();
 
-        foreach($item_list as $k=>$v){
-            $item[$k] = $this->values[$k];
-            $require = $v['require'];
-            $regexp = (isset($v['regexp'])) ? $v['regexp'] : false;
+        foreach($item_list as $k=>$test_list){
+            if(isset($test_list['require'])){ // hmmm, any neat ideas?
+                $test_list = array($test_list);
+            }
 
-            if($regexp){
-                if($require){
-                    if(preg_match($regexp, $item[$k])){
-                        //ok
-                    }else{
-                        $error_list[$k] = $v['error_text'];
+            foreach($test_list as $v){
+                $value = $this->values[$k];
+                $require = (isset($v['require'])) ? $v['require'] : false;
+                $regexp = (isset($v['regexp'])) ? $v['regexp'] : false;
+                $callback = (isset($v['callback'])) ? $v['callback'] : false;
+                $error_text = (isset($v['error_text'])) ? $v['error_text'] : "{$k}を正しく入力してください";
+
+                if($regexp){
+                    if( $require || mb_strlen($value)!=0 ){
+                        if(!preg_match($regexp, $value)){
+                            $error_list[$k] = $error_text;
+                            continue 2;
+                        }
                     }
-                }else{
-                    if(mb_strlen($item[$k])==0 || preg_match($regexp, $item[$k])){
-                        //ok
-                    }else{
-                        $error_list[$k] = $v['error_text'];
+                }else if($callback){
+                    if( $require || mb_strlen($value)!=0 ){
+                        if(!call_user_func($callback, $value)){
+                            $error_list[$k] = $error_text;
+                            continue 2;
+                        }
                     }
-                }
-            }else if($require){
-                if(is_array($item[$k]) && count($item[$k])>0 ){
-                    //ok
-                }else if(mb_strlen($item[$k])>0){
-                    //ok
-                }else{
-                    if(isset($v['error_text'])){
-                        $error_list[$k] = $v['error_text'];
-                    }else{
-                        $error_list[$k] = "{$k}を正しく入力してください";
+                }else if($require){
+                    if( mb_strlen($value)==0 ){
+                        $error_list[$k] = $error_text;
+                        continue 2;
                     }
                 }
             }

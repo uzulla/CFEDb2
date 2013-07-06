@@ -16,6 +16,32 @@ class Post extends \Uzulla\CFEDb2{
         $this->values['num'] = null;
         $this->values['created_at'] = null;
         $this->values['updated_at'] = null;
+
+        $this->validateData = array(
+            'text' => array(
+                'require' => false,
+                'regexp'=>"/\ATEXT/",
+            ),
+            'num'  => array(
+	            array(
+	            	'require' => true,
+	            	'regexp' => "/\A[0-9]+\z/",
+	            	'error_text' => "数字以外が混ざっています",
+            	),
+            	array(
+		            'require' => true,
+		            'callback' => function($str){
+		                if(0+$str < 0){
+			                return false;
+		                }else{
+		                	return true;
+		                }
+		            },
+		            'error_text' => '数字が負数です',
+	            ),
+	        ),
+        );
+
         parent::__construct();
     }
 

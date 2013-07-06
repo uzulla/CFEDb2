@@ -172,12 +172,53 @@ class PostTest extends PHPUnit_Framework_TestCase{
 
     public function testGetsHashByList(){
         $post_list = Post::getsAll();
-	$hash_array = Post::getsHashByList($post_list);
+        $hash_array = Post::getsHashByList($post_list);
 
         $this->assertEquals(5, count($hash_array));
-	$this->assertEquals(true, is_array($hash_array[0]));
+        $this->assertEquals(true, is_array($hash_array[0]));
         $this->assertEquals(5, count($hash_array[0]));
         $this->assertEquals(true, isset($hash_array[0]['num']));
-	$this->assertEquals(true, is_string($hash_array[1]['text']));
+        $this->assertEquals(true, is_string($hash_array[1]['text']));
     }
+
+    public function testValidation(){
+        $post = new Post;
+        $post->val('text', 'TEXT is text');
+        $post->val('num', 10);
+        $error_list = $post->validate();
+        $this->assertEquals(0, count($error_list));
+
+        $post = new Post;
+        $post->val('text', 'bad text');
+        $post->val('num', 10);
+        $error_list = $post->validate();
+        $this->assertEquals(1, count($error_list));
+
+        $post = new Post;
+        $post->val('text', 'TEXT is text');
+        $post->val('num', 'NaN');
+        $error_list = $post->validate();
+        $this->assertEquals(1, count($error_list));
+        
+        $post = new Post;
+        $post->val('text', 'TEXT is text');
+        $post->val('num', -1);
+        $error_list = $post->validate();
+        $this->assertEquals(1, count($error_list));
+        
+        $post = new Post;
+        $post->val('text', 'bad text');
+        $post->val('num', 'bad number');
+        $error_list = $post->validate();
+        $this->assertEquals(2, count($error_list));
+
+        $post = new Post;
+        $post->val('text', '');
+        $post->val('num', '');
+        $error_list = $post->validate();
+        $this->assertEquals(1, count($error_list));
+        
+    }
+    
+    
 }
