@@ -30,7 +30,7 @@ class Post extends \Uzulla\CFEDb2{
             	),
             	array(
 		            'require' => true,
-		            'callback' => function($str){
+		            'callback' => function($str, $_self){
 		                if(0+$str < 0){
 			                return false;
 		                }else{

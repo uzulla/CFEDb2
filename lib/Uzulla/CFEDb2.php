@@ -403,7 +403,7 @@ class CFEDb2 {
                     }
                 }else if($callback){
                     if( $require || mb_strlen($value)!=0 ){
-                        if(!call_user_func($callback, $value)){
+                        if(!call_user_func($callback, $value, $this)){
                             $error_list[$k] = $error_text;
                             continue 2;
                         }
