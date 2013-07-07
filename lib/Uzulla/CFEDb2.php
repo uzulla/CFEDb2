@@ -419,21 +419,14 @@ class CFEDb2 {
         if(is_null($PDO)){
             $PDO = static::getPDO();
         }
+        $sql = 'DELETE FROM '.static::$tablename.' WHERE ' . $where_col . ' = :val ;';
+        $params = array('val' => $where_val);
         try{
-            if (is_null($where_col)) {
-                $sql = 'DELETE FROM '.static::$tablename.' ;';
-                $params = null;
-                $sth = $PDO->prepare($sql);
-                $rtn = $sth->execute();
-            } else {
-                $sql = 'DELETE FROM '.static::$tablename.' WHERE ' . $where_col . ' = :val ;';
-                $params = array('val' => $where_val);
-                $sth = $PDO->prepare($sql);
-                $rtn = $sth->execute($params);
-            }
+            $sth = $PDO->prepare($sql);
+            $rtn = $sth->execute($params);
             $this->lastRowCount = $sth->rowCount();
         }catch(\PDOException $e){
-            static::log(array("DB ERROR: delete fail",$sql,$params,$PDO->errorInfo(),$sth->errorInfo()));
+            static::log(array("DB ERROR: delete fail",$sql,$params,$e->errorInfo));
             throw new \Exception('DB ERROR: delete fail');
         }
         if($this->lastRowCount==0){
@@ -462,14 +455,14 @@ class CFEDb2 {
             $state = $sth->execute($params);
             $this->lastRowCount = $sth->rowCount();
         }catch(\PDOException $e){
-            static::log(array("DB ERROR: save item",$e->getMessage(),$sql,$params,$PDO->errorInfo(),$sth->errorInfo()));
+            static::log(array("DB ERROR: save item",$e->getMessage(),$sql,$params,$e->errorInfo));
             throw new \Exception('DB ERROR: save item');
         }
         $id = $PDO->lastInsertId();
 
         if ($state) {
             if ($isInsert && $id==0) {
-                static::log(array("DB ERROR: insert fail",$sql,$params,$PDO->errorInfo(),$sth->errorInfo()));
+                static::log(array("DB ERROR: insert fail",$sql,$params));
                 throw new \Exception('DB ERROR: insert fail');
             }
             if(!$isInsert){
