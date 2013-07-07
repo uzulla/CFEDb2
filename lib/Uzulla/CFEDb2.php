@@ -184,7 +184,7 @@ class CFEDb2 {
             $sth = $PDO->prepare($sql);
             $sth->execute($params);
         } catch (\PDOException $e) {
-            static::log(array("DB ERROR: simpleQuery",$e->getMessage(),$sql,$params,$PDO->errorInfo()));
+            static::log(array("DB ERROR: simpleQuery",$e->getMessage(),$sql,$params,$e->errorInfo));
             throw new \Exception('DB ERROR: execute error');
         }
         return $sth->fetchAll(\PDO::FETCH_ASSOC);
