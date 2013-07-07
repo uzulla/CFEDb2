@@ -1,5 +1,4 @@
 <?php
-
 /*
  * CFEDb2
  * Author: uzulla <uzulla@himitsukichi.com>
@@ -36,7 +35,7 @@ class CFEDb2 {
         '_db_name' => "",
         '_db_user' => "",
         '_db_pass' => "",
-        '_db_pre_exec' => false, //"SET NAMES UTF8"
+        '_db_pre_exec' => false, // "SET NAMES UTF8"
         '_db_reuse_pdo' => true,
         'DEBUG' => true,
 	);
@@ -54,28 +53,28 @@ class CFEDb2 {
     static function log($message){
         $config = static::$config;
 
-        $btstr = '';
+        $backtrace_str = '';
         if($config['DEBUG']){
-            $btstr .="\n -backtrace-";
+            $backtrace_str .="\n -backtrace-";
 
             $bt = array_reverse(debug_backtrace());
             foreach ($bt as $i) {
                 $filename = ( isset($i['file']) ) ? basename($i['file']) : ( (isset($i['class'])) ? $i['class'] : 'UNKNOWN' );
-                $funcname = $i['function'];
+                $function_name = $i['function'];
                 $line = (isset($i['line'])) ? $i['line'] : '??';
 
-                if ($funcname != 'log') {
+                if ($function_name != 'log') {
                     if (isset($i['args']) && count($i['args']) > 0) {
-                        $argsdump = static::plog_tostr($i['args']);
+                        $args_dump = static::plog_tostr($i['args']);
                     }else{
-                        $argsdump = '';
+                        $args_dump = '';
                     }
                 } else {
-                    $argsdump = "SEE UNDER";
+                    $args_dump = "SEE UNDER";
                 }
-                $btstr .= "\n {$filename} => {$funcname} : {$line} args({$argsdump}) / ";
+                $backtrace_str .= "\n {$filename} => {$function_name} : {$line} args({$args_dump}) / ";
             }
-            $btstr .="\n --\n";
+            $backtrace_str .="\n --\n";
         }
 
         if (is_array($message) || is_object($message)) {
@@ -83,9 +82,9 @@ class CFEDb2 {
         }
 
         if(isset($_SERVER['REMOTE_ADDR'])){
-            error_log("IP:{$_SERVER['REMOTE_ADDR']}{$btstr} {$message}");
+            error_log("IP:{$_SERVER['REMOTE_ADDR']}{$backtrace_str} {$message}");
         }else{
-            error_log("CLI{$btstr} {$message}");
+            error_log("CLI{$backtrace_str} {$message}");
         }
     }
     static function plog_tostr($o) {
@@ -125,8 +124,8 @@ class CFEDb2 {
                 }
 
             } catch (\PDOException $e) {
-                static::log(array("fail db conn", $e->getMessage()));
-                throw new \Exception('fail db conn');
+                static::log(array("DB ERROR: connect to db fail", $e->getMessage()));
+                throw new \Exception('DB ERROR: connect to db fail');
             }
             $PDO->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION );
 
@@ -289,10 +288,9 @@ class CFEDb2 {
     }
 
     static function getRand() {
-        $config = static::$config;
-        if ($config['_db_type'] == 'sqlite') {
+        if (static::$config['_db_type'] == 'sqlite') {
             $rand_func_name = "random()";
-        } elseif($config['_db_type'] == 'mysql') {
+        } elseif(static::$config['_db_type'] == 'mysql') {
             $rand_func_name = "random()";
         } else {
             throw new \PDOException('invalid db_type');
@@ -430,10 +428,8 @@ class CFEDb2 {
             throw new \Exception('DB ERROR: delete fail');
         }
         if($this->lastRowCount==0){
-            throw new \Exception('DB ERROR: delete fail, item notfound.');
+            throw new \Exception('DB ERROR: delete fail, item not found.');
         }
-
-        return true;
     }
 
     public function saveItem($forceInsert=FALSE, $PDO=null) {
@@ -455,8 +451,8 @@ class CFEDb2 {
             $state = $sth->execute($params);
             $this->lastRowCount = $sth->rowCount();
         }catch(\PDOException $e){
-            static::log(array("DB ERROR: save item",$e->getMessage(),$sql,$params,$e->errorInfo));
-            throw new \Exception('DB ERROR: save item');
+            static::log(array("DB ERROR: save item fail",$e->getMessage(),$sql,$params,$e->errorInfo));
+            throw new \Exception('DB ERROR: save item fail');
         }
         $id = $PDO->lastInsertId();
 
@@ -482,8 +478,7 @@ class CFEDb2 {
             if ($k == static::$pkeyname){
                 continue;
             }else if ('updated_at' == $k){
-                $config = static::$config ;
-                if($config['_db_type'] == 'sqlite'){
+                if(static::$config['_db_type'] == 'sqlite'){
                     $sql .= " ${k}=datetime('now'),";
                 }else{
                     $sql .= " ${k}=now(),";
