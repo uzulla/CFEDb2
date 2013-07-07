@@ -1,6 +1,8 @@
 <?php
 require_once '../example/Post.php';
 ini_set('error_log', __DIR__ . '/phperror.log');
+define('DB_FILENAME', __DIR__."/test.db");
+
 
 class PostTest extends PHPUnit_Framework_TestCase
 {
@@ -8,7 +10,7 @@ class PostTest extends PHPUnit_Framework_TestCase
     {
         \Uzulla\CFEDb2::$config = array(
             '_db_type' => "sqlite",
-            '_db_sv' => "test.db",
+            '_db_sv' => DB_FILENAME,
             '_db_name' => "",
             '_db_user' => "",
             '_db_pass' => "",
@@ -22,7 +24,6 @@ class PostTest extends PHPUnit_Framework_TestCase
             $dbh = \Uzulla\CFEDb2::getPDO();
 
             $dbh->exec("DROP TABLE IF EXISTS post ;");
-
             $sql = 'CREATE TABLE post (
                       id INTEGER PRIMARY KEY NOT NULL,
                       text text ,
@@ -39,8 +40,13 @@ class PostTest extends PHPUnit_Framework_TestCase
             $dbh->exec($sql);
 
         } catch (PDOException $e) {
-            die("DB ERROR: " . $e->getMessage());
+            die("setup error: " . $e->getMessage());
         }
+    }
+
+    public static function tearDownAfterClass()
+    {
+        unlink(DB_FILENAME);
     }
 
     public function testGetPDO()
