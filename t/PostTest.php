@@ -1,12 +1,22 @@
 <?php
 require_once '../example/Post.php';
-require_once '../example/DBConfig.php';
-ini_set('error_log', __DIR__ . '/phperror.log');
 
+class PostTest extends PHPUnit_Framework_TestCase
+{
+    protected function setUp()
+    {
+        \Uzulla\CFEDb2::$config = array(
+            '_db_type' => "sqlite",
+            '_db_sv' => "test.db",
+            '_db_name' => "",
+            '_db_user' => "",
+            '_db_pass' => "",
+            '_db_pre_exec' => false, //"SET NAMES UTF8"
+            '_db_reuse_pdo' => true,
+            '_db_reuse_pdo_global_name' => 'CFEDb2_DBH',
+            'DEBUG' => true,
+        );
 
-class PostTest extends PHPUnit_Framework_TestCase{
-
-    protected function setUp(){
         try {
             $dbh = \Uzulla\CFEDb2::getPDO();
 
@@ -28,27 +38,31 @@ class PostTest extends PHPUnit_Framework_TestCase{
             $dbh->exec($sql);
 
         } catch (PDOException $e) {
-            die("DB ERROR: ". $e->getMessage());
+            die("DB ERROR: " . $e->getMessage());
         }
     }
 
-    public function testGetPDO(){
+    public function testGetPDO()
+    {
         $PDO = Post::getPDO();
         $this->assertEquals('PDO', get_class($PDO));
     }
 
-    public function testNew(){
+    public function testNew()
+    {
         $db = new Post();
         $this->assertEquals('Post', get_class($db));
     }
 
-    public function testGetById(){
+    public function testGetById()
+    {
         $db = Post::getById(1);
         $this->assertEquals('Post', get_class($db));
         $this->assertEquals(1, $db->val('id'));
     }
 
-    public function testSimpleQuery(){
+    public function testSimpleQuery()
+    {
         $db = Post::simpleQuery('select * from post', array());
         $this->assertTrue(is_array($db));
         $this->assertGreaterThan(2, count($db));
@@ -58,38 +72,55 @@ class PostTest extends PHPUnit_Framework_TestCase{
     /**
      * @expectedException Exception
      */
-    public function testSimpleQueryFail(){
+    public function testSimpleQueryFail()
+    {
         $db = Post::simpleQuery('select bad sql * from post', array());
     }
 
     /**
      * @expectedException Exception
      */
-    public function testBadConfig(){
-        $config = new \Uzulla\DbConfig();
-        $config->_db_type = "GREATFUL_DB_ENGINE";
-        $PDO = Post::getPdo($config);
+    public function testBadConfig()
+    {
+        \Uzulla\CFEDb2::$config = array(
+            '_db_type' => "bad_db",
+            '_db_sv' => "test.db",
+            '_db_name' => "",
+            '_db_user' => "",
+            '_db_pass' => "",
+            '_db_pre_exec' => false, //"SET NAMES UTF8"
+            '_db_reuse_pdo' => true,
+            '_db_reuse_pdo_global_name' => 'CFEDb2_DBH',
+            'DEBUG' => true,
+        );
+        $PDO = Post::getPdo();
     }
 
-    public function testSimpleQueryOne(){
+    public function testSimpleQueryOne()
+    {
         $db = Post::simpleQueryOne('select * from post', array());
         $this->assertTrue(is_array($db));
         $this->assertGreaterThan(2, count($db));
         $this->assertEquals(1, $db['id']);
     }
-    public function testGetBySQL(){
-        $db = Post::getBySQL('select * from post where `id`=:id', array('id'=>1));
+
+    public function testGetBySQL()
+    {
+        $db = Post::getBySQL('select * from post where `id`=:id', array('id' => 1));
         $this->assertEquals(1, $db->val('id'));
     }
-    public function testGetsBySQL(){
-        $db = Post::getsBySQL('select * from post where `id` > :id', array('id'=>1));
+
+    public function testGetsBySQL()
+    {
+        $db = Post::getsBySQL('select * from post where `id` > :id', array('id' => 1));
         $this->assertGreaterThan(1, count($db));
         $_db = $db[0];
         $this->assertGreaterThan(1, $_db->val('id'));
     }
 
 
-    public function testInsert(){
+    public function testInsert()
+    {
         $post = new Post();
         $post->val('text', 'this is text');
         $time = time();
@@ -106,7 +137,8 @@ class PostTest extends PHPUnit_Framework_TestCase{
         $this->assertGreaterThan(0, strtotime($_post->val('updated_at')));
     }
 
-    public function testUpdate(){
+    public function testUpdate()
+    {
         $post = Post::getById(1);
         $post->val('text', "NOWHERE MAN");
         $post->val('num', 9999999);
@@ -121,7 +153,8 @@ class PostTest extends PHPUnit_Framework_TestCase{
         $this->assertNotEquals($updated_at, $post->val('updated_at'));
     }
 
-    public function testDelete(){
+    public function testDelete()
+    {
         $post = Post::getById(1);
         $post->deleteItem();
 
@@ -132,20 +165,22 @@ class PostTest extends PHPUnit_Framework_TestCase{
         $this->assertEquals('Post', get_class($post));
     }
 
-    public function testGetRand(){
+    public function testGetRand()
+    {
         $beforePost = Post::getRand();
         $flag = false;
-        for($i=0; 10>$i; $i++){
+        for ($i = 0; 10 > $i; $i++) {
             $post = Post::getRand();
-            if($post->val('id') !=$beforePost->val('id')){
-                $flag=true;
+            if ($post->val('id') != $beforePost->val('id')) {
+                $flag = true;
             }
             $beforePost = $post;
         }
         $this->assertEquals(true, $flag);
     }
 
-    public function testTransactionRollback(){
+    public function testTransactionRollback()
+    {
         $PDO = \Uzulla\CFEDb2::getPDO();
 
         $post = Post::getById(1, $PDO);
@@ -170,7 +205,8 @@ class PostTest extends PHPUnit_Framework_TestCase{
 
     }
 
-    public function testGetsHashByList(){
+    public function testGetsHashByList()
+    {
         $post_list = Post::getsAll();
         $hash_array = Post::getsHashByList($post_list);
 
@@ -181,7 +217,8 @@ class PostTest extends PHPUnit_Framework_TestCase{
         $this->assertEquals(true, is_string($hash_array[1]['text']));
     }
 
-    public function testValidation(){
+    public function testValidation()
+    {
         $post = new Post;
         $post->val('text', 'TEXT is text');
         $post->val('num', 10);
@@ -199,13 +236,13 @@ class PostTest extends PHPUnit_Framework_TestCase{
         $post->val('num', 'NaN');
         $error_list = $post->validate();
         $this->assertEquals(1, count($error_list));
-        
+
         $post = new Post;
         $post->val('text', 'TEXT is text');
         $post->val('num', -1);
         $error_list = $post->validate();
         $this->assertEquals(1, count($error_list));
-        
+
         $post = new Post;
         $post->val('text', 'bad text');
         $post->val('num', 'bad number');
@@ -217,8 +254,8 @@ class PostTest extends PHPUnit_Framework_TestCase{
         $post->val('num', '');
         $error_list = $post->validate();
         $this->assertEquals(1, count($error_list));
-        
+
     }
-    
-    
+
+
 }

@@ -21,22 +21,23 @@
  * 20130618 コード大改修、エラー周りを例外化、error_log化、Static化
  * 20130704 getsHashByListを追加
  * 20130706 validatorを拡張
+ * 20130708 DB接続定義のやり方を大幅に変更
  */
 
 namespace Uzulla;
 
-//class DbConfig {
-//    public $_db_type	= "sqlite";
-//    public $_db_sv      = "test.db";
-//    public $_db_name	= "";
-//    public $_db_user	= "";
-//    public $_db_pass	= "";
-//    public $_db_pre_exec = false;//"SET NAMES UTF8"
-//    public $_db_reuse_pdo = true;
-//    public $_db_reuse_pdo_global_name = 'CFEDb2_DBH';
-//    public $DEBUG = true;
-//}
 class CFEDb2 {
+	static $config = array(
+        '_db_type'=> "sqlite",
+        '_db_sv' => "test.db",
+        '_db_name' => "",
+        '_db_user' => "",
+        '_db_pass' => "",
+        '_db_pre_exec' => false, //"SET NAMES UTF8"
+        '_db_reuse_pdo' => true,
+        '_db_reuse_pdo_global_name' => 'CFEDb2_DBH',
+        'DEBUG' => true,
+	);
 
     public $PDO = null;
     static $tablename = 'MUSTOVERRIDE';
@@ -51,10 +52,10 @@ class CFEDb2 {
     );
 
     static function log($message){
-        $dbconfig = new DbConfig();
+        $config = static::$config;
 
         $btstr = '';
-        if($dbconfig->DEBUG){
+        if($config['DEBUG']){
             $btstr .="\n -backtrace-";
 
             $bt = array_reverse(debug_backtrace());
@@ -101,7 +102,6 @@ class CFEDb2 {
         }
     }
 
-
     public function __construct($PDO=null) {
         $this->csvHeaders = array();
         if(isset($this->values)){
@@ -109,18 +109,17 @@ class CFEDb2 {
                 $this->csvHeaders[] = $k;
             }
         }
+        $config = static::$config;
 
-        $this->dbconfig = new DbConfig();
-
-        if($this->dbconfig->_db_reuse_pdo){
+        if($config['_db_reuse_pdo']){
             if(!is_null($PDO)){
-                $GLOBALS[$this->dbconfig->_db_reuse_pdo_global_name] = $PDO;
-            }elseif(!isset($GLOBALS[$this->dbconfig->_db_reuse_pdo_global_name])){
-                $GLOBALS[$this->dbconfig->_db_reuse_pdo_global_name] = static::getPDO(new DbConfig());
+                $GLOBALS[$config['_db_reuse_pdo_global_name']] = $PDO;
+            }elseif(!isset($GLOBALS[$config['_db_reuse_pdo_global_name']])){
+                $GLOBALS[$config['_db_reuse_pdo_global_name']] = static::getPDO($config);
             }
-            $this->PDO = $GLOBALS[$this->dbconfig->_db_reuse_pdo_global_name];
+            $this->PDO = $GLOBALS[$config['_db_reuse_pdo_global_name']];
         }else{
-            $this->PDO = static::getPDO(new DbConfig());
+            $this->PDO = static::getPDO();
         }
 
         return $this;
@@ -129,19 +128,20 @@ class CFEDb2 {
     //PDO取得
     static function getPDO($config=null) {
         if(is_null($config)){
-            $config = new DbConfig();
+            $config = static::$config;
         }
+
         try {
-            if ($config->_db_type == 'sqlite') {
-                $PDO = new \PDO("{$config->_db_type}:{$config->_db_sv}", '');
-            } elseif($config->_db_type == 'mysql') {
-                $PDO = new \PDO("{$config->_db_type}:host={$config->_db_sv};dbname={$config->_db_name}", $config->_db_user, $config->_db_pass);
+            if ($config['_db_type'] == 'sqlite') {
+                $PDO = new \PDO("{$config['_db_type']}:{$config['_db_sv']}", '');
+            } elseif($config['_db_type'] == 'mysql') {
+                $PDO = new \PDO("{$config['_db_type']}:host={$config['_db_sv']};dbname={$config['_db_name']}", $config['_db_user'], $config['_db_pass']);
             } else {
                 throw new \PDOException('invalid db_type');
             }
 
-            if($config->_db_pre_exec) {
-                $PDO->query($config->_db_pre_exec);
+            if($config['_db_pre_exec']) {
+                $PDO->query($config['_db_pre_exec']);
             }
 
         } catch (PDOException $e) {
@@ -291,10 +291,10 @@ class CFEDb2 {
     }
 
     static function getRand() {
-        $config = new DbConfig();
-        if ($config->_db_type == 'sqlite') {
+        $config = static::$config;
+        if ($config['_db_type'] == 'sqlite') {
             $rand_func_name = "random()";
-        } elseif($config->_db_type == 'mysql') {
+        } elseif($config['_db_type'] == 'mysql') {
             $rand_func_name = "random()";
         } else {
             throw new \PDOException('invalid db_type');
@@ -445,7 +445,7 @@ class CFEDb2 {
     }
 
     public function saveItem($forceInsert=FALSE) {
-        if ($this->dbconfig->DEBUG) {
+        if (static::$config['DEBUG']) {
             $this->PDO->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_WARNING );
         }
 
@@ -507,7 +507,8 @@ class CFEDb2 {
             if ($k == static::$pkeyname){
                 continue;
             }else if ('updated_at' == $k){
-                if($this->dbconfig->_db_type == 'sqlite'){
+                $config = static::$config ;
+                if($config['_db_type'] == 'sqlite'){
                     $sql .= " ${k}=datetime('now'),";
                 }else{
                     $sql .= " ${k}=now(),";
@@ -537,7 +538,8 @@ class CFEDb2 {
             if ($k == static::$pkeyname && $forceId==FALSE) {
 
             } else if ('created_at' == $k || 'updated_at' == $k) {
-                if($this->dbconfig->_db_type == 'sqlite'){
+                $config = static::$config ;
+                if($config['_db_type'] == 'sqlite'){
                     $sql .= "datetime('now'),";
                 }else{
                     $sql .= "now(),";
