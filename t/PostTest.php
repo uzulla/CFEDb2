@@ -1,5 +1,6 @@
 <?php
 require_once '../example/Post.php';
+ini_set('error_log', __DIR__ . '/phperror.log');
 
 class PostTest extends PHPUnit_Framework_TestCase
 {
@@ -80,20 +81,33 @@ class PostTest extends PHPUnit_Framework_TestCase
     /**
      * @expectedException Exception
      */
+    public function testDeleteFail()
+    {
+        $post = new Post();
+        $post->val('text', 'this is text');
+        $time = time();
+        $post->val('num', $time);
+        $post->saveItem();
+        $post->deleteItem();
+        $post->deleteItem(); // double delete.
+    }
+
+    /**
+     * @expectedException Exception
+     */
     public function testBadConfig()
     {
-        \Uzulla\CFEDb2::$config = array(
+        $config = array(
             '_db_type' => "bad_db",
             '_db_sv' => "test.db",
             '_db_name' => "",
             '_db_user' => "",
             '_db_pass' => "",
             '_db_pre_exec' => false, //"SET NAMES UTF8"
-            '_db_reuse_pdo' => true,
-            '_db_reuse_pdo_global_name' => 'CFEDb2_DBH',
+            '_db_reuse_pdo' => false,
             'DEBUG' => true,
         );
-        $PDO = Post::getPdo();
+        $PDO = Post::getPDO($config);
     }
 
     public function testSimpleQueryOne()

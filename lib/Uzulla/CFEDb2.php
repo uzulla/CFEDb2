@@ -22,6 +22,9 @@
  * 20130704 getsHashByListを追加
  * 20130706 validatorを拡張
  * 20130708 DB接続定義のやり方を大幅に変更
+ *          CSV関連を削除
+ *          リファクタリング
+ *          コードを大幅にクリーンアップ、頻度の低い関数削除
  */
 
 namespace Uzulla;
@@ -35,18 +38,15 @@ class CFEDb2 {
         '_db_pass' => "",
         '_db_pre_exec' => false, //"SET NAMES UTF8"
         '_db_reuse_pdo' => true,
-        '_db_reuse_pdo_global_name' => 'CFEDb2_DBH',
         'DEBUG' => true,
 	);
 
+    static $REUSE_PDO = null;
     public $PDO = null;
     static $tablename = 'MUSTOVERRIDE';
     static $pkeyname = 'MUSTOVERRIDE';
     public $values;
-    public $error;
-    public $csvHeaders;
     public $lastRowCount;
-    public $dbconfig;
     public $validateData = array(
         'colmn_name'=>array('require'=>true, 'regexp'=>'/\A.*@.*\..*\z/u','error_text'=>'colmn_name を正しく設定してください'), //サンプルなので、かならずオーバーライドすること
     );
@@ -102,99 +102,94 @@ class CFEDb2 {
         }
     }
 
-    public function __construct($PDO=null) {
-        $this->csvHeaders = array();
-        if(isset($this->values)){
-            foreach(array_keys($this->values) as $k){
-                $this->csvHeaders[] = $k;
-            }
-        }
-        $config = static::$config;
-
-        if($config['_db_reuse_pdo']){
-            if(!is_null($PDO)){
-                $GLOBALS[$config['_db_reuse_pdo_global_name']] = $PDO;
-            }elseif(!isset($GLOBALS[$config['_db_reuse_pdo_global_name']])){
-                $GLOBALS[$config['_db_reuse_pdo_global_name']] = static::getPDO($config);
-            }
-            $this->PDO = $GLOBALS[$config['_db_reuse_pdo_global_name']];
-        }else{
-            $this->PDO = static::getPDO();
-        }
-
-        return $this;
-    }
-
     //PDO取得
     static function getPDO($config=null) {
         if(is_null($config)){
             $config = static::$config;
         }
 
-        try {
-            if ($config['_db_type'] == 'sqlite') {
-                $PDO = new \PDO("{$config['_db_type']}:{$config['_db_sv']}", '');
-            } elseif($config['_db_type'] == 'mysql') {
-                $PDO = new \PDO("{$config['_db_type']}:host={$config['_db_sv']};dbname={$config['_db_name']}", $config['_db_user'], $config['_db_pass']);
-            } else {
-                throw new \PDOException('invalid db_type');
-            }
+        if( $config['_db_reuse_pdo'] && isset(static::$REUSE_PDO) && 'PDO' == get_class(static::$REUSE_PDO)){
+            return static::$REUSE_PDO;
+        }else{
+            try {
+                if ($config['_db_type'] == 'sqlite') {
+                    $PDO = new \PDO("{$config['_db_type']}:{$config['_db_sv']}", '');
+                } elseif($config['_db_type'] == 'mysql') {
+                    $PDO = new \PDO("{$config['_db_type']}:host={$config['_db_sv']};dbname={$config['_db_name']}", $config['_db_user'], $config['_db_pass']);
+                } else {
+                    throw new \PDOException('invalid db_type');
+                }
 
-            if($config['_db_pre_exec']) {
-                $PDO->query($config['_db_pre_exec']);
-            }
+                if($config['_db_pre_exec']) {
+                    $PDO->query($config['_db_pre_exec']);
+                }
 
-        } catch (PDOException $e) {
-            static::log(array("fail db conn", $e->getMessage(), $config));
-            throw new \Exception('fail db conn');
+            } catch (\PDOException $e) {
+                static::log(array("fail db conn", $e->getMessage()));
+                throw new \Exception('fail db conn');
+            }
+            $PDO->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION );
+
+            if($config['_db_reuse_pdo']){
+                static::$REUSE_PDO = $PDO;
+            }
+            return $PDO;
         }
+    }
+
+    public function transactionBegin($PDO=null){
+        if(is_null($PDO)){
+            $PDO = static::getPDO();
+        }
+        $PDO->query('BEGIN;');
+        return $PDO;
+    }
+    public function transactionCommit($PDO=null){
+        if(is_null($PDO)){
+            $PDO = static::getPDO();
+        }
+        $PDO->query('COMMIT;');
+        return $PDO;
+    }
+    public function transactionRollback($PDO=null){
+        if(is_null($PDO)){
+            $PDO = static::getPDO();
+        }
+        $PDO->query('ROLLBACK;');
         return $PDO;
     }
 
-    public function transactionBegin(){
-        $this->PDO->query('BEGIN;');
-    }
-    public function transactionCommit(){
-        $this->PDO->query('COMMIT;');
-    }
-    public function transactionRollback(){
-        $this->PDO->query('ROLLBACK;');
-    }
-
     //配列になったCFEDb2のインスタンスを、普通のハッシュ配列に変換します。 
-    static function getsHashByList($list){
-        if(is_null($list)){
+    static function getsHashByList($item_list){
+        if(!is_array($item_list)){
             return array();
         }
         $rtn = array();
-        foreach($list as $item){
-            $tmparray = array();
+        foreach($item_list as $item){
+            $_array = array();
             foreach($item->values as $k=>$v){
-                $tmparray[$k] = $v;
+                $_array[$k] = $v;
             }
-            $rtn[] = $tmparray;
+            $rtn[] = $_array;
         }
         return $rtn;
     }
 
     //SQL指定クエリ
     static function simpleQuery($sql, $params, $PDO=null){
-        $_tmp = new static($PDO);
-        $sth = $_tmp->PDO->prepare($sql);
-        if(!$sth){
-            static::log(array($sql,$params,$sth));
-            throw new \Exception('DB ERROR: null sth, invalid sql?');
+        if(is_null($PDO)){
+            $PDO = static::getPDO();
         }
-
         try{
+            $sth = $PDO->prepare($sql);
             $sth->execute($params);
-        } catch (PDOException $e) {
-            static::log(array("DB ERROR: simpleQuery",$e->getMessage(),$sql,$params,$_tmp->PDO->errorInfo(),$sth->errorInfo()));
+        } catch (\PDOException $e) {
+            static::log(array("DB ERROR: simpleQuery",$e->getMessage(),$sql,$params,$PDO->errorInfo()));
             throw new \Exception('DB ERROR: execute error');
         }
-        $items = $sth->fetchAll(\PDO::FETCH_ASSOC);
-        return $items;
+        return $sth->fetchAll(\PDO::FETCH_ASSOC);
     }
+
     static function simpleQueryOne($sql, $params, $PDO=null){
         $items = static::simpleQuery($sql, $params, $PDO);
         return $items[0];
@@ -204,6 +199,7 @@ class CFEDb2 {
         $item = static::simpleQueryOne($sql, $params, $PDO);
         return static::getByHash($item);
     }
+
     static function getsBySQL($sql, $params, $PDO=null) {
         $items = static::simpleQuery($sql, $params, $PDO);
         return static::getsByHashList($items);
@@ -211,7 +207,7 @@ class CFEDb2 {
 
     static function countAll() {
         $items = static::simpleQuery('SELECT count(*) FROM '.static::$tablename.';', array());
-        return (int) $items[0]["count(*)"];
+        return 0+$items[0]["count(*)"];
     }
 
     public function val($key, $val=null) {
@@ -235,8 +231,7 @@ class CFEDb2 {
     }
 
     static function getsByHashList($items) {
-        if (count($items) == 0) { return null; }
-
+        if (empty($items)) { return null; }
         $rtnArr = array();
         foreach ($items as $item) {
             $tmp = new static;
@@ -248,6 +243,7 @@ class CFEDb2 {
         }
         return $rtnArr;
     }
+
     static function getByHash($item) {
         $tmp = new static;
         foreach ($item as $k => $v) {
@@ -258,7 +254,7 @@ class CFEDb2 {
 
     static function getsBySome($col, $val) {
         $items = static::simpleQuery("SELECT * FROM `".static::$tablename."` WHERE `{$col}` = :val", array('val'=>$val));
-        if (count($items) == 0) {
+        if (empty($items)) {
             return null;
         }
         return static::getsByHashList($items);
@@ -272,17 +268,19 @@ class CFEDb2 {
     }
 
     static function getById($_key, $PDO=null) {
-        $obj = new static($PDO);
+        $res = static::simpleQuery(
+            'SELECT * FROM ' . static::$tablename . ' WHERE ' . static::$pkeyname . ' = ?',
+            array($_key),
+            $PDO
+        );
 
-        $sth = $obj->PDO->prepare('SELECT * FROM ' . static::$tablename . ' WHERE ' . static::$pkeyname . ' = ?');
-        $sth->execute(array($_key));
-
-        $row = $sth->fetchObject();
-        if ($row == false) {
-            return null; // notfound key
+        if (count($res)==1) {
+            return static::getByHash($res[0]);
+        }else if(count($res)>1){
+            throw new \Exception('multiple row found.');
+        }else{
+            return null; // notfound
         }
-
-        return static::getByHash($row);
     }
 
     static function getsAll() {
@@ -301,35 +299,29 @@ class CFEDb2 {
         }
 
         $items = static::simpleQuery('SELECT * FROM ' . static::$tablename . ' ORDER BY '.$rand_func_name.' LIMIT 1', array());
-        if(count($items)>0){
+
+        if(empty($items)){
+            return null;
+        }else{
             $obj = new static;
             foreach ($items[0] as $k => $v) {
                 $obj->values["$k"] = $v;
             }
             return $obj;
-        }else{
-            return null;
         }
     }
 
-    public function getHash() {
-        $rtn = array();
-        foreach ($this->values as $k => $v) {
-            $rtn[$k] = $v;
-        }
-        return $rtn;
-    }
-
-    static function getsBySomeList($col, $val_list){
-        $list = static::simpleQuery('SELECT * FROM '.static::$tablename.' WHERE `'.$col.'` IN :list ', array('list'=>static::buildINStr($val_list)) );
-        return static::getsByHashList($list);
-    }
-    static function buildINStr($list){
-        $in = '( ';
-        $in .= join(',', $list);
-        $in .= ' )';
-        return $in;
-    }
+//エスケープが不十分に見えるのでDeprecated
+//    static function getsBySomeList($col, $val_list){
+//        $list = static::simpleQuery('SELECT * FROM '.static::$tablename.' WHERE `'.$col.'` IN :list ', array('list'=>static::buildINStr($val_list)) );
+//        return static::getsByHashList($list);
+//    }
+//    static function buildINStr($list){
+//        $in = '( ';
+//        $in .= join(',', $list);
+//        $in .= ' )';
+//        return $in;
+//    }
 
     //配列の、特定のキー名のリストを返す
     static function getsSomeColVal($list, $col){
@@ -339,7 +331,6 @@ class CFEDb2 {
         }
         return $val_list;
     }
-
 
     static function buildINQuery($list){
         $i = 0;
@@ -364,16 +355,18 @@ class CFEDb2 {
         return $_list;
     }
 
-    public function loadFromRequest(Request $r){
+
+    public function loadFromRequest($params){
+        if(!is_array($params)){
+            throw new \Exception('Must array');
+        }
         foreach($this->values as $k=>$v){
-            if(!is_null($r->val($k))){
-                $this->val($k, $r->val($k));
-            }
             if($k=='ua'){
                 $this->val('ua', $_SERVER['HTTP_USER_AGENT']);
-            }
-            if($k=='ip'){
+            }elseif($k=='ip'){
                 $this->val('ip', $_SERVER['REMOTE_ADDR']);
+            }elseif(isset($params[$k])){
+                $this->val($k, $params[$k]);
             }
         }
     }
@@ -383,7 +376,7 @@ class CFEDb2 {
         $item_list = $this->validateData;
 
         foreach($item_list as $k=>$test_list){
-            if(isset($test_list['require'])){ // hmmm, any neat ideas?
+            if(isset($test_list['require'])){ // 条件を入れ子にすることができる hmmm, any neat ideas?
                 $test_list = array($test_list);
             }
 
@@ -419,74 +412,64 @@ class CFEDb2 {
         return $error_list;
     }
 
-    public function _delete($where_col, $where_val) {
-        if (is_null($where_col)) {
-            $sql = 'DELETE FROM '.static::$tablename.' ;';
-            $sth = $this->PDO->prepare($sql);
-            $params = null;
-            $rtn = $sth->execute();
-            $this->lastRowCount = $sth->rowCount();
-        } else {
-            $sql = 'DELETE FROM '.static::$tablename.' WHERE ' . $where_col . ' = :val ;';
-            $sth = $this->PDO->prepare($sql);
-            $params = array('val' => $where_val);
-            $rtn = $sth->execute($params);
-            $this->lastRowCount = $sth->rowCount();
-        }
-        if (!$rtn) {
-            static::log(array("DB ERROR: insert fail",$sql,$params,$this->PDO->errorInfo(),$sth->errorInfo()));
-            throw new \Exception('DB ERROR: insert fail');
-        }else{
-            return true;
-        }
-    }
-    public function deleteItem() {
+    public function deleteItem() { //事前処理が必要な場合、ここに継承させる
         return $this->_delete(static::$pkeyname, $this->values[static::$pkeyname]);
     }
-
-    public function saveItem($forceInsert=FALSE) {
-        if (static::$config['DEBUG']) {
-            $this->PDO->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_WARNING );
+    public function _delete($where_col, $where_val, $PDO = null) {
+        if(is_null($PDO)){
+            $PDO = static::getPDO();
         }
-
-        $isInsert = 0;
-        if (is_null(static::$pkeyname) || is_null($this->values[static::$pkeyname]) || '' == $this->values[static::$pkeyname] || $forceInsert == TRUE ) { // dont have id, so this is new one. goto insert
-            try{
-                $sql = $this->createInsertSQL($forceInsert);
-                $sth = $this->PDO->prepare($sql);
-                if(!$sth){
-                    static::log(array($sql,$sth));
-                    throw new \Exception('DB ERROR: null sth, invalid sql?');
-                }
-                $params = $this->createKVArray('insert', $forceInsert);
-                $state = $sth->execute($params);
-            }catch(PDOException $e){
-                static::log(array("DB ERROR: simpleQuery",$e->getMessage(),$sql,$params,$this->PDO->errorInfo(),$sth->errorInfo()));
-                throw new \Exception('DB ERROR: execute error');
+        try{
+            if (is_null($where_col)) {
+                $sql = 'DELETE FROM '.static::$tablename.' ;';
+                $params = null;
+                $sth = $PDO->prepare($sql);
+                $rtn = $sth->execute();
+            } else {
+                $sql = 'DELETE FROM '.static::$tablename.' WHERE ' . $where_col . ' = :val ;';
+                $params = array('val' => $where_val);
+                $sth = $PDO->prepare($sql);
+                $rtn = $sth->execute($params);
             }
             $this->lastRowCount = $sth->rowCount();
+        }catch(\PDOException $e){
+            static::log(array("DB ERROR: delete fail",$sql,$params,$PDO->errorInfo(),$sth->errorInfo()));
+            throw new \Exception('DB ERROR: delete fail');
+        }
+        if($this->lastRowCount==0){
+            throw new \Exception('DB ERROR: delete fail, item notfound.');
+        }
+
+        return true;
+    }
+
+    public function saveItem($forceInsert=FALSE, $PDO=null) {
+        if(is_null($PDO)){
+            $PDO = static::getPDO();
+        }
+
+        if (is_null(static::$pkeyname) || is_null($this->values[static::$pkeyname]) || '' == $this->values[static::$pkeyname] || $forceInsert == TRUE ) { // dont have id, so this is new one. goto insert
+            $sql = $this->createInsertSQL($forceInsert);
+            $params = $this->createKVArray('insert', $forceInsert);
             $isInsert = 1;
         } else {
             $sql = $this->createUpdateSQL();
-            $sth = $this->PDO->prepare($sql);
-            if(!$sth){
-                static::log(array($sql,$sth));
-                throw new \Exception('DB ERROR: null sth, invalid sql?');
-            }
-            try{
-                $params = $this->createKVArray('update');
-                $state = $sth->execute($params);
-            }catch (PDOException $e){
-                static::log(array("DB ERROR: ",$e->getMessage(),$sql,$params,$this->PDO->errorInfo(),$sth->errorInfo()));
-                throw new \Exception('DB ERROR: execute error');
-            }
-            $this->lastRowCount = $sth->rowCount();
+            $params = $this->createKVArray('update');
+            $isInsert = 0;
         }
-        $id = $this->PDO->lastInsertId();
+        try{
+            $sth = $PDO->prepare($sql);
+            $state = $sth->execute($params);
+            $this->lastRowCount = $sth->rowCount();
+        }catch(\PDOException $e){
+            static::log(array("DB ERROR: save item",$e->getMessage(),$sql,$params,$PDO->errorInfo(),$sth->errorInfo()));
+            throw new \Exception('DB ERROR: save item');
+        }
+        $id = $PDO->lastInsertId();
 
         if ($state) {
             if ($isInsert && $id==0) {
-                static::log(array("DB ERROR: insert fail",$sql,$params,$this->PDO->errorInfo(),$sth->errorInfo()));
+                static::log(array("DB ERROR: insert fail",$sql,$params,$PDO->errorInfo(),$sth->errorInfo()));
                 throw new \Exception('DB ERROR: insert fail');
             }
             if(!$isInsert){
@@ -495,7 +478,6 @@ class CFEDb2 {
             $_tmp = static::getById($id);
             $this->values = $_tmp->values;
             return $this;
-
         } else {
             throw new \Exception('DB ERROR: save fail');
         }
@@ -523,35 +505,31 @@ class CFEDb2 {
     }
 
     public function createInsertSQL($forceId=false) {
-        $sql = "INSERT INTO ".static::$tablename." (";
-
+        $keys = array();
         foreach ($this->values as $k => $v) {
             if ($k == static::$pkeyname && $forceId==FALSE)
                 continue;
-            $sql .= " `${k}`,";
+            $keys[] = "`${k}`";
         }
-        $sql = preg_replace('/,$/', '', $sql);
 
-        $sql .= " )VALUES( ";
-
+        $values = array();
         foreach ($this->values as $k => $v) {
             if ($k == static::$pkeyname && $forceId==FALSE) {
+                continue;
 
             } else if ('created_at' == $k || 'updated_at' == $k) {
-                $config = static::$config ;
-                if($config['_db_type'] == 'sqlite'){
-                    $sql .= "datetime('now'),";
+                if(static::$config['_db_type'] == 'sqlite'){
+                    $values[] = "datetime('now')";
                 }else{
-                    $sql .= "now(),";
+                    $values[] = "now()";
                 }
             } else {
-                $sql .= " :${k},";
+                $values[] = ":${k}";
             }
         }
-        $sql = preg_replace('/,$/', '', $sql);
 
-        $sql .= " );";
-
+        $sql = "INSERT INTO ".static::$tablename;
+        $sql .= " (".implode(',', $keys).") VALUES (".implode(',', $values).");";
         return $sql;
     }
 
@@ -576,36 +554,5 @@ class CFEDb2 {
     static function timeToMysqlInsertableDateStr($time){
         return date('Y-m-d H:i:s', $time);
     }
-
-    public function getCsvLine(){
-        $l = array();
-        foreach( $this->csvHeaders as $k){
-            $l[] = $this->values[$k];
-        }
-        return CFECsv::buildLineFromArray($l);
-    }
-    public function getCsvHeader(){
-        return CFECsv::buildLineFromArray($this->csvHeaders);
-    }
-
-    //Hashから値を取得する際に、値がセットされていない場合でも、エラーにならないようにする
-    public function getIfKeyExists($arr, $key) {
-        if (is_null($key))
-            return null;
-        if (!isset($arr[$key]))
-            return null;
-        return $arr[$key];
-    }
-
-    //二水文字を含んでいないかチェックする
-    public function isContained2suiChar($str) {
-        mb_substitute_character('none');
-        $str1 = mb_convert_encoding(mb_convert_encoding($str, 'SJIS', 'UTF-8'), 'UTF-8', 'SJIS');
-        if (mb_strlen($str1) != mb_strlen($str))
-            return true;
-        else
-            return false;
-    }
-
 
 }

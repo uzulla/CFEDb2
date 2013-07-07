@@ -41,8 +41,6 @@ class Post extends \Uzulla\CFEDb2{
 	            ),
 	        ),
         );
-
-        parent::__construct();
     }
 
     public function as_you_like(){
