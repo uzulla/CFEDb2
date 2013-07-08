@@ -24,6 +24,9 @@
  *          CSV関連を削除
  *          リファクタリング
  *          コードを大幅にクリーンアップ、頻度の低い関数削除
+ * 20130709 countBySome()を追加
+ *          getHash*(), getsHash*()系を追加(Hashで取得できる)
+ *          細々とリファクタリング
  */
 
 namespace Uzulla;
@@ -204,9 +207,26 @@ class CFEDb2 {
         return static::getsByHashList($items);
     }
 
-    static function countAll() {
-        $items = static::simpleQuery('SELECT count(*) FROM '.static::$tablename.';', array());
-        return 0+$items[0]["count(*)"];
+    static function countAll($PDO=null) {
+        $items = static::simpleQuery('SELECT count(*) as count FROM '.static::$tablename.';', array(), $PDO);
+        return 0+$items[0]["count"];
+    }
+
+    static function countBySome($col, $val, $PDO=null) {
+        if(is_array($col) && is_array($val)){
+            $_tmp = array();
+            foreach($col as $k=>$v){
+                $_tmp[] = "`{$v}` = :col_{$k}";
+	            $params["col_{$k}"] = $val[$k];
+            }
+            $where = " WHERE ".implode(' AND ', $_tmp);
+        }else{
+            $where = " WHERE `{$col}` = :val";
+            $params['val'] = $val;
+        }
+
+        $items = static::simpleQuery("SELECT count(*) as count FROM `".static::$tablename."`".$where, $params, $PDO);
+        return 0+$items[0]["count"];
     }
 
     public function val($key, $val=null) {
@@ -251,40 +271,76 @@ class CFEDb2 {
         return $tmp;
     }
 
-    static function getsBySome($col, $val) {
-        $items = static::simpleQuery("SELECT * FROM `".static::$tablename."` WHERE `{$col}` = :val", array('val'=>$val));
+    static function getsHashBySome($col, $val, $PDO=null) {
+        $items = static::simpleQuery("SELECT * FROM `".static::$tablename."` WHERE `{$col}` = :val", array('val'=>$val), $PDO);
+        if (empty($items)) {
+            return null;
+        }
+        return $items;
+    }
+
+    static function getsBySome($col, $val, $PDO=null) {
+        $items = static::getsHashBySome($col, $val, $PDO);
         if (empty($items)) {
             return null;
         }
         return static::getsByHashList($items);
     }
-    static function getBySome($col, $val) {
+
+    static function getHashBySome($col, $val, $PDO=null) {
         $items = static::simpleQuery("SELECT * FROM `".static::$tablename."` WHERE `{$col}` = :val LIMIT 1", array('val'=>$val));
-        if (count($items) == 0) {
+        if (empty($items)) {
+            return null;
+        }
+        return $items[0];
+    }
+
+    static function getBySome($col, $val, $PDO=null) {
+        $items = static::getHashBySome($col, $val, $PDO);
+        if (empty($items)) {
             return null;
         }
         return static::getByHash($items[0]);
     }
 
-    static function getById($_key, $PDO=null) {
+    static function getHashById($_key, $PDO=null) {
         $res = static::simpleQuery(
-            'SELECT * FROM ' . static::$tablename . ' WHERE ' . static::$pkeyname . ' = ?',
+            'SELECT * FROM ' . static::$tablename . ' WHERE ' . static::$pkeyname . ' = ? LIMIT 1',
             array($_key),
             $PDO
         );
-
-        if (count($res)==1) {
-            return static::getByHash($res[0]);
-        }else if(count($res)>1){
-            throw new \Exception('multiple row found.');
-        }else{
+        if(empty($res)){
             return null; // notfound
+        }else{
+            return $res[0];
         }
     }
 
-    static function getsAll() {
-        $items = static::simpleQuery('select * from '.static::$tablename, array());
-        return static::getsByHashList($items);
+    static function getById($_key, $PDO=null) {
+        $res = static::getHashById($_key, $PDO);
+        if (empty($res)) {
+            return null; // notfound
+        }else{
+            return static::getByHash($res);
+        }
+    }
+
+    static function getsHashAll($PDO=null) {
+        $res = static::simpleQuery('select * from '.static::$tablename, array());
+        if (empty($res)) {
+            return null; // notfound
+        }else{
+            return $res;
+        }
+    }
+
+    static function getsAll($PDO=null) {
+        $res = static::getsHashAll($PDO);
+        if (empty($res)) {
+            return null; // notfound
+        }else{
+            return static::getsByHashList($res);
+        }
     }
 
     static function getRand() {
@@ -479,7 +535,7 @@ class CFEDb2 {
                 continue;
             }else if ('updated_at' == $k){
                 if(static::$config['_db_type'] == 'sqlite'){
-                    $sql .= " ${k}=datetime('now'),";
+                    $sql .= " ${k}=datetime('now', 'localtime'),";
                 }else{
                     $sql .= " ${k}=now(),";
                 }
@@ -507,7 +563,7 @@ class CFEDb2 {
 
             } else if ('created_at' == $k || 'updated_at' == $k) {
                 if(static::$config['_db_type'] == 'sqlite'){
-                    $values[] = "datetime('now')";
+                    $values[] = "datetime('now', 'localtime')";
                 }else{
                     $values[] = "now()";
                 }

@@ -277,5 +277,11 @@ class PostTest extends PHPUnit_Framework_TestCase
 
     }
 
+    public function testCount()
+    {
+        $this->assertEquals(5, Post::countAll());
+        $this->assertEquals(1, Post::countBySome('num', '10001'));
+        $this->assertEquals(1, Post::countBySome(array('num', 'text'), array('10001', 'TEXT 1')));
+    }
 
 }
