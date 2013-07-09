@@ -296,11 +296,11 @@ class CFEDb2 {
     }
 
     static function getBySome($col, $val, $PDO=null) {
-        $items = static::getHashBySome($col, $val, $PDO);
-        if (empty($items)) {
+        $item = static::getHashBySome($col, $val, $PDO);
+        if (empty($item)) {
             return null;
         }
-        return static::getByHash($items[0]);
+        return static::getByHash($item);
     }
 
     static function getHashById($_key, $PDO=null) {
