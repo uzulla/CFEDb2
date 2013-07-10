@@ -272,7 +272,7 @@ class CFEDb2 {
     }
 
     static function getsHashBySome($col, $val, $PDO=null) {
-        $items = static::simpleQuery("SELECT * FROM `".static::$tablename."` WHERE `{$col}` = :val", array('val'=>$val), $PDO);
+        $items = static::simpleQuery("SELECT * FROM `".static::$tablename."` WHERE `{$col}` = :val ORDER BY ".static::$pkeyname." DESC", array('val'=>$val), $PDO);
         if (empty($items)) {
             return null;
         }

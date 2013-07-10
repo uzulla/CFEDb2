@@ -9,41 +9,51 @@ PDO + mysql, PDO + sqlite3
 ## オレオレライブラリです
 ながれるようにチェーンでSqlをBuildするとか、Joinがすばらしくできるとか、そういうものはありません。
 設計の自由度もありません。
-5年位は前にActiveRecordをつかってから、ちゃっちゃっとモデルを作るのが楽だなーっておもって、当時の知識で（パラダイムの変遷を理解せず）書いてます。
-しかしながら、find()とかjoin()とかつなぐのかったるいSQLで書かせろって思ったので、SQLBuilder系は作っていません。
+昔ActiveRecordをつかって、ちゃっちゃっとモデルを作るのが楽だなーって思い、当時の理解で（パラダイムの変遷を理解せず）書いてます。
+しかし、ARはfind()とかjoin()とかつなぐのかったるい、いいからSQLで書かせろって思ったので、SQLBuilder系は作っていません。
 
 
 * まずSQLをかいたほうがハヤイと思っている
 * 出てくるのがハッシュだとちょっと不便
 * DBにインサートする前にオブジェクトを作りたい
+* FatだろうがなんだろうがRowオブジェクト最高
 
 
-という変わった人なら本ライブラリも良いかもしれませんが、自作したほうが良いと思います。
+という変わった人なら本ライブラリも良いかもしれません。
+
 
 ## 典型的な使い方
 ```
-        $post = new Post();
-        $post->val('text', 'this is text');
-        $post->val('num', 123);
-        $post->saveItem();
+$post = new Post();
+$post->val('text', 'this is text');
+$post->val('num', 123);
+$post->saveItem();
 
-        $post2 = Post::getById(1);
-        echo $post2->val('text');
-        
-        $post3 = Post::getBySome('text', 'this is text');
-        if(is_null($post3)){
-            echo "notfound";
-        }
-        
-        $post_list = Post::getsBySQL('SELECT * FROM post WHERE id>:id', array('id'=>5));
-        foreach($post_list as $p){
-            echo $p->val('id');
-        }
-        
-        $post->deleteItem();
+$post2 = Post::getById(1);
+echo $post2->val('text');
+
+$post3 = Post::getBySome('text', 'this is text');
+if(empty($post3)){
+    echo "not found";
+}
+
+$post_list = Post::getsBySQL('SELECT * FROM post WHERE id>:id', array('id'=>5));
+if(empty($post_list)){
+    echo "not found";
+}
+foreach($post_list as $p){
+    echo $p->val('id');
+}
+
+$post->deleteItem();
+
+//もし貴方がROWオブジェクト嫌いなら…
+
+$post_list = Post::getsHashBySome('text', 'this is text');
 
 ```
-まあ、テストコードを見てください。
+テストコードを見てください(しかし、全部が羅列されているわけではありません)
+
 
 ## インストール
 DLして適当に配置する、
@@ -79,7 +89,6 @@ class Post extends \Uzulla\CFEDb2{
         $this->values['num'] = null;
         $this->values['created_at'] = null;
         $this->values['updated_at'] = null;
-        parent::__construct();
     }
     public function as_you_like(){
         return $this->val('id').' as you like!';
@@ -92,24 +101,19 @@ class Post extends \Uzulla\CFEDb2{
 
 
 ## DB接続情報設定
-以下の設定用のクラスが必要です。
 
 ```
-namespace Uzulla{
-    class DbConfig {
-        public $_db_type    = "sqlite";
-        public $_db_sv      = "test.db";
-        public $_db_name    = "";
-        public $_db_user    = "";
-        public $_db_pass    = "";
-        public $_db_pre_exec = false;//"SET NAMES UTF8"
-        public $_db_reuse_pdo = true;
-        public $_db_reuse_pdo_global_name = 'CFEDb2_DBH';
-        public $DEBUG = true;
-    }
-}
+\Uzulla\CFEDb2::$config = array(
+    '_db_type' => "sqlite",
+    '_db_sv' => DB_FILENAME,
+    '_db_name' => "",
+    '_db_user' => "",
+    '_db_pass' => "",
+    '_db_pre_exec' => false, //"SET NAMES UTF8"
+    '_db_reuse_pdo' => true,
+    'DEBUG' => true,
+);
 ```
-(なんでクラスであってハッシュじゃないかって？4年位前の私に聞きたいです)
 
 
 ## 使わない方が無難です
@@ -120,9 +124,7 @@ namespace Uzulla{
 正直な所、これを使う人がいるとはおもえませんが、つかわないほうが良いでしょう。下記を見て人里に帰りましょう。
 
 
-## まともであろうORM達
-[www.phpactiverecord.org](http://www.phpactiverecord.org/)
-
+## 世間一般的にまともであろうORM達
 [www.phpactiverecord.org](http://www.phpactiverecord.org/)
 
 [propelorm.org](http://propelorm.org/)
@@ -134,4 +136,3 @@ namespace Uzulla{
 [redbeanphp.com](http://redbeanphp.com/)
 
 [GitHub search](https://github.com/search?q=php+orm&ref=cmdform)
-
