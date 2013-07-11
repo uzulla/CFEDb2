@@ -347,7 +347,7 @@ class CFEDb2 {
         if (static::$config['_db_type'] == 'sqlite') {
             $rand_func_name = "random()";
         } elseif(static::$config['_db_type'] == 'mysql') {
-            $rand_func_name = "random()";
+            $rand_func_name = "rand()";
         } else {
             throw new \PDOException('invalid db_type');
         }
@@ -513,7 +513,8 @@ class CFEDb2 {
         $id = $PDO->lastInsertId();
 
         if ($state) {
-            if ($isInsert && $id==0) {
+            //echo "\nid: {$id}\n";
+            if ($isInsert && $id==0) { //  if you not set AUTO_INCREMENT=1, $id is 0... become fail.
                 static::log(array("DB ERROR: insert fail",$sql,$params));
                 throw new \Exception('DB ERROR: insert fail');
             }
