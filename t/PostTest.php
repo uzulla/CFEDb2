@@ -8,35 +8,38 @@ class PostTest extends PHPUnit_Framework_TestCase
 {
     protected function setUp()
     {
-        \Uzulla\CFEDb2::$config = array(
-            '_db_type' => "sqlite",
-            '_db_sv' => DB_FILENAME,
-            '_db_name' => "",
-            '_db_user' => "",
-            '_db_pass' => "",
-            '_db_pre_exec' => false, //"SET NAMES UTF8"
-            '_db_reuse_pdo' => true,
-            '_db_reuse_pdo_global_name' => 'CFEDb2_DBH',
-            'DEBUG' => true,
-        );
+        if($_SERVER['CFEDB_TEST_DB']=='mysql'){
+            \Uzulla\CFEDb2::$config = array(
+                '_db_type' => "mysql",
+                '_db_sv' => "localhost:4444",
+                '_db_name' => "cfedb",
+                '_db_user' => "root",
+                '_db_pass' => "",
+                '_db_pre_exec' => "SET NAMES UTF8", //"SET NAMES UTF8"
+                '_db_reuse_pdo' => true,
+                'DEBUG' => true,
+            );
+        }else{
+            \Uzulla\CFEDb2::$config = array(
+                '_db_type' => "sqlite",
+                '_db_sv' => DB_FILENAME,
+                '_db_name' => "",
+                '_db_user' => "",
+                '_db_pass' => "",
+                '_db_pre_exec' => false, //"SET NAMES UTF8"
+                '_db_reuse_pdo' => true,
+                'DEBUG' => true,
+            );
+        }
 
         try {
             $dbh = \Uzulla\CFEDb2::getPDO();
+            if($_SERVER['CFEDB_TEST_DB']=='mysql'){
+                $sql = file_get_contents("init_mysql.sql");
+            }else{
+                $sql = file_get_contents("init.sql");
+            }
 
-            $dbh->exec("DROP TABLE IF EXISTS post ;");
-            $sql = 'CREATE TABLE post (
-                      id INTEGER PRIMARY KEY NOT NULL,
-                      text text ,
-                      num integer ,
-                      created_at text NOT NULL,
-                      updated_at text NOT NULL
-                    );
-                    INSERT INTO "post" VALUES(1,\'TEXT 1\', 10001,\'1999-12-12 00:00:00\',\'1999-12-12 00:00:00\');
-                    INSERT INTO "post" VALUES(2,\'TEXT 2\', 10002,\'1999-12-12 00:00:00\',\'1999-12-12 00:00:00\');
-                    INSERT INTO "post" VALUES(3,\'TEXT 3\', 10003,\'1999-12-12 00:00:00\',\'1999-12-12 00:00:00\');
-                    INSERT INTO "post" VALUES(4,\'TEXT 4\', 10004,\'1999-12-12 00:00:00\',\'1999-12-12 00:00:00\');
-                    INSERT INTO "post" VALUES(5,\'TEXT 5\', 10005,\'1999-12-12 00:00:00\',\'1999-12-12 00:00:00\');
-                    ';
             $dbh->exec($sql);
 
         } catch (PDOException $e) {
