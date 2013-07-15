@@ -32,7 +32,7 @@
 namespace Uzulla;
 
 class CFEDb2 {
-	static $config = array(
+    static $config = array(
         '_db_type'=> "sqlite",
         '_db_sv' => "test.db",
         '_db_name' => "",
@@ -41,7 +41,7 @@ class CFEDb2 {
         '_db_pre_exec' => false, // "SET NAMES UTF8"
         '_db_reuse_pdo' => true,
         'DEBUG' => true,
-	);
+    );
 
     static $REUSE_PDO = null;
     public $PDO = null;
@@ -213,11 +213,12 @@ class CFEDb2 {
     }
 
     static function countBySome($col, $val, $PDO=null) {
+        $params = array();
         if(is_array($col) && is_array($val)){
             $_tmp = array();
             foreach($col as $k=>$v){
                 $_tmp[] = "`{$v}` = :col_{$k}";
-	            $params["col_{$k}"] = $val[$k];
+                $params["col_{$k}"] = $val[$k];
             }
             $where = " WHERE ".implode(' AND ', $_tmp);
         }else{
@@ -238,6 +239,7 @@ class CFEDb2 {
             }
         } else {
             $this->values[$key] = $val;
+            return true;
         }
     }
 
@@ -253,7 +255,7 @@ class CFEDb2 {
         if (empty($items)) { return null; }
         $rtnArr = array();
         foreach ($items as $item) {
-            $tmp = new static;
+            $tmp = new static;  /** @var \Uzulla\CFEDb2 $tmp */
             $tmp->values = array();
             foreach ($item as $k => $v) {
                 $tmp->values[$k] = $v;
@@ -265,6 +267,7 @@ class CFEDb2 {
 
     static function getByHash($item) {
         $tmp = new static;
+        /** @var \Uzulla\CFEDb2 $tmp */
         foreach ($item as $k => $v) {
             $tmp->values[$k] = $v;
         }
@@ -272,7 +275,7 @@ class CFEDb2 {
     }
 
     static function getsHashBySome($col, $val, $PDO=null) {
-        $items = static::simpleQuery("SELECT * FROM `".static::$tablename."` WHERE `{$col}` = :val ORDER BY ".static::$pkeyname." DESC", array('val'=>$val), $PDO);
+        $items = static::simpleQuery("SELECT * FROM `".static::$tablename."` WHERE `{$col}` = :val", array('val'=>$val), $PDO);
         if (empty($items)) {
             return null;
         }
@@ -288,7 +291,7 @@ class CFEDb2 {
     }
 
     static function getHashBySome($col, $val, $PDO=null) {
-        $items = static::simpleQuery("SELECT * FROM `".static::$tablename."` WHERE `{$col}` = :val LIMIT 1", array('val'=>$val));
+        $items = static::simpleQuery("SELECT * FROM `".static::$tablename."` WHERE `{$col}` = :val LIMIT 1", array('val'=>$val), $PDO);
         if (empty($items)) {
             return null;
         }
@@ -326,7 +329,7 @@ class CFEDb2 {
     }
 
     static function getsHashAll($PDO=null) {
-        $res = static::simpleQuery('select * from '.static::$tablename, array());
+        $res = static::simpleQuery('select * from '.static::$tablename, array(),$PDO);
         if (empty($res)) {
             return null; // notfound
         }else{
@@ -347,7 +350,7 @@ class CFEDb2 {
         if (static::$config['_db_type'] == 'sqlite') {
             $rand_func_name = "random()";
         } elseif(static::$config['_db_type'] == 'mysql') {
-            $rand_func_name = "rand()";
+            $rand_func_name = "random()";
         } else {
             throw new \PDOException('invalid db_type');
         }
@@ -358,6 +361,7 @@ class CFEDb2 {
             return null;
         }else{
             $obj = new static;
+            /** @var \Uzulla\CFEDb2 $obj */
             foreach ($items[0] as $k => $v) {
                 $obj->values["$k"] = $v;
             }
@@ -377,8 +381,32 @@ class CFEDb2 {
 //        return $in;
 //    }
 
-    //配列の、特定のキー名のリストを返す
-    static function getsSomeColVal($list, $col){
+    //あるカラムで、複数の値(配列)を指定して、アイテムリストを取得する
+    static function getsHashByColVals($col, $val_list, $PDO=null) {
+        $inq = static::buildINQuery($val_list);
+        $param = static::buildINParams($val_list);
+        $WHERE = "WHERE `{$col}` IN {$inq}" ;
+        $sql  ="SELECT * FROM `".static::$tablename."` ".$WHERE;
+        $items = static::simpleQuery($sql, $param, $PDO);
+        plog($sql, $param);
+        if (empty($items)) {
+            return null;
+        }
+        return $items;
+    }
+    static function getsByColVals($col, $val_list, $PDO=null) {
+        $items = static::getsHashByColVals($col, $val_list, $PDO);
+        if (empty($items)) {
+            return null;
+        }
+        return static::getsByHashList($items);
+    }
+
+//    static function getsSomeColVal($list, $col){ //非推奨
+//        return static::getValuesByItemListAndColumnName($list, $col);
+//    }
+    //アイテムリストから、カラム名を指定して、値の配列をフィルタ的に取り出す
+    static function getValuesByItemListAndColumnName($list, $col){ /** @var \Uzulla\CFEDb2[] $list */
         $val_list = array();
         foreach($list as $item){
             $val_list[] = $item->val($col);
@@ -477,7 +505,9 @@ class CFEDb2 {
         $params = array('val' => $where_val);
         try{
             $sth = $PDO->prepare($sql);
-            $rtn = $sth->execute($params);
+            if (!empty($sth)) {
+                $sth->execute($params);
+            }
             $this->lastRowCount = $sth->rowCount();
         }catch(\PDOException $e){
             static::log(array("DB ERROR: delete fail",$sql,$params,$e->errorInfo));
@@ -486,6 +516,7 @@ class CFEDb2 {
         if($this->lastRowCount==0){
             throw new \Exception('DB ERROR: delete fail, item not found.');
         }
+        return true;
     }
 
     public function saveItem($forceInsert=FALSE, $PDO=null) {
@@ -513,7 +544,6 @@ class CFEDb2 {
         $id = $PDO->lastInsertId();
 
         if ($state) {
-            //echo "\nid: {$id}\n";
             if ($isInsert && $id==0) { //  if you not set AUTO_INCREMENT=1, $id is 0... become fail.
                 static::log(array("DB ERROR: insert fail",$sql,$params));
                 throw new \Exception('DB ERROR: insert fail');
