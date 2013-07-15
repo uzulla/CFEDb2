@@ -143,21 +143,21 @@ class CFEDb2 {
         if(is_null($PDO)){
             $PDO = static::getPDO();
         }
-        $PDO->query('BEGIN;');
+        $PDO->beginTransaction();
         return $PDO;
     }
     public function transactionCommit($PDO=null){
         if(is_null($PDO)){
             $PDO = static::getPDO();
         }
-        $PDO->query('COMMIT;');
+        $PDO->commit();
         return $PDO;
     }
     public function transactionRollback($PDO=null){
         if(is_null($PDO)){
             $PDO = static::getPDO();
         }
-        $PDO->query('ROLLBACK;');
+        $PDO->rollBack();
         return $PDO;
     }
 
@@ -388,7 +388,6 @@ class CFEDb2 {
         $WHERE = "WHERE `{$col}` IN {$inq}" ;
         $sql  ="SELECT * FROM `".static::$tablename."` ".$WHERE;
         $items = static::simpleQuery($sql, $param, $PDO);
-        plog($sql, $param);
         if (empty($items)) {
             return null;
         }
@@ -466,7 +465,8 @@ class CFEDb2 {
                 $value = $this->values[$k];
                 $require = (isset($v['require'])) ? $v['require'] : false;
                 $regexp = (isset($v['regexp'])) ? $v['regexp'] : false;
-                $callback = (isset($v['callback'])) ? $v['callback'] : false;
+                $callback_available = (isset($v['callback'])) ? true : false;
+                $callback = (isset($v['callback'])) ? $v['callback'] : function(){};
                 $error_text = (isset($v['error_text'])) ? $v['error_text'] : "{$k}を正しく入力してください";
 
                 if($regexp){
@@ -476,7 +476,7 @@ class CFEDb2 {
                             continue 2;
                         }
                     }
-                }else if($callback){
+                }else if($callback_available){
                     if( $require || mb_strlen($value)!=0 ){
                         if(!call_user_func($callback, $value, $this)){
                             $error_list[$k] = $error_text;
