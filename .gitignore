@@ -1,3 +1,5 @@
 .idea
 t/test.db
 t/phperror.log
+/vendor/
+/composer.lock
