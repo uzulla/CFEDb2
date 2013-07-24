@@ -1,3 +1,2 @@
 #!/bin/sh
-export CFEDB_TEST_DB=sqlite
-phpunit PostTest
+../vendor/bin/phpunit PostTest.php

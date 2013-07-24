@@ -104,13 +104,24 @@ class Post extends \Uzulla\CFEDb2{
 
 ```
 \Uzulla\CFEDb2::$config = array(
-    '_db_type' => "sqlite",
-    '_db_sv' => DB_FILENAME,
-    '_db_name' => "",
-    '_db_user' => "",
-    '_db_pass' => "",
-    '_db_pre_exec' => false, //"SET NAMES UTF8"
-    '_db_reuse_pdo' => true,
+    'type'=> 'sqlite',
+    'dsn' => 'sqlite_filename.db',
+    'user' => '',
+    'pass' => '',
+    'pre_exec' => '',
+    'reuse_pdo' => true,
+    'DEBUG' => true,
+);
+
+or
+
+\Uzulla\CFEDb2::$config = array(
+    'type'=> 'mysql',
+    'dsn' => 'mysql_socket=/path/to/mysql.socket;dbname=test', //'dsn' => 'host=127.0.0.1;dbname=test',
+    'user' => 'user',
+    'pass' => 'pass',
+    'pre_exec' => "SET NAMES UTF8",
+    'reuse_pdo' => true,
     'DEBUG' => true,
 );
 ```

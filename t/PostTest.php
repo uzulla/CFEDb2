@@ -1,43 +1,50 @@
 <?php
 require_once '../example/Post.php';
-ini_set('error_log', __DIR__ . '/phperror.log');
-define('DB_FILENAME', __DIR__."/test.db");
-
 
 class PostTest extends PHPUnit_Framework_TestCase
 {
     protected function setUp()
     {
-        if($_SERVER['CFEDB_TEST_DB']=='mysql'){
+        if(isset($_SERVER['TEST_MYSQL_PERL_DSN'])){
+            //DBI:mysql:dbname=test;mysql_socket=/path/to/tmp/mysql.sock;user=root
+            list($dsn, $path, $user) = preg_split('/;/', $_SERVER['TEST_MYSQL_PERL_DSN'], null, PREG_SPLIT_NO_EMPTY);
+            $type = 'mysql';
+            $db_name  = preg_replace('/DBI:mysql:/', '', $dsn);
+            $path = preg_replace('/mysql_socket/', 'unix_socket', $path);
+            $dsn = "{$path};{$db_name}";
+            $user = preg_replace('/user=/', '', $user);
+            $pass = '';
+
             \Uzulla\CFEDb2::$config = array(
-                '_db_type' => "mysql",
-                '_db_sv' => "localhost:4444",
-                '_db_name' => "cfedb",
-                '_db_user' => "root",
-                '_db_pass' => "",
-                '_db_pre_exec' => "SET NAMES UTF8", //"SET NAMES UTF8"
-                '_db_reuse_pdo' => true,
+                'type'=> $type,
+                //'dsn' => 'host=127.0.0.1;dbname=test',
+                'dsn' => $dsn,
+                'user' => $user,
+                'pass' => $pass,
+                'pre_exec' => "SET NAMES UTF8",
+                'reuse_pdo' => true,
                 'DEBUG' => true,
             );
         }else{
             \Uzulla\CFEDb2::$config = array(
-                '_db_type' => "sqlite",
-                '_db_sv' => DB_FILENAME,
-                '_db_name' => "",
-                '_db_user' => "",
-                '_db_pass' => "",
-                '_db_pre_exec' => false, //"SET NAMES UTF8"
-                '_db_reuse_pdo' => true,
+                'type'=> 'sqlite',
+                'dsn' => ':memory:',
+                'user' => "",
+                'pass' => "",
+                'pre_exec' => false,
+                'reuse_pdo' => true,
                 'DEBUG' => true,
             );
         }
 
         try {
             $dbh = \Uzulla\CFEDb2::getPDO();
-            if($_SERVER['CFEDB_TEST_DB']=='mysql'){
+            if(\Uzulla\CFEDb2::$config['type'] == 'mysql'){
                 $sql = file_get_contents("init_mysql.sql");
-            }else{
+            }else if(\Uzulla\CFEDb2::$config['type'] == 'sqlite'){
                 $sql = file_get_contents("init.sql");
+            }else{
+                die('setup error: unknown type');
             }
 
             $dbh->exec($sql);
@@ -49,7 +56,6 @@ class PostTest extends PHPUnit_Framework_TestCase
 
     public static function tearDownAfterClass()
     {
-        unlink(DB_FILENAME);
     }
 
     public function testGetPDO()

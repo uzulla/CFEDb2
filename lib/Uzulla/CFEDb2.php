@@ -27,19 +27,20 @@
  * 20130709 countBySome()を追加
  *          getHash*(), getsHash*()系を追加(Hashで取得できる)
  *          細々とリファクタリング
+ * 20130724 コンフィグの互換性変更
  */
 
 namespace Uzulla;
 
 class CFEDb2 {
     static $config = array(
-        '_db_type'=> "sqlite",
-        '_db_sv' => "test.db",
-        '_db_name' => "",
-        '_db_user' => "",
-        '_db_pass' => "",
-        '_db_pre_exec' => false, // "SET NAMES UTF8"
-        '_db_reuse_pdo' => true,
+        'type'=> 'mysql',
+        'dsn' => 'host=127.0.0.1;dbname=test',
+        //'dsn' => 'unix_socket=/tmp/mysql.sock;dbname=test',
+        'user' => "",
+        'pass' => "",
+        'pre_exec' => false, // "SET NAMES UTF8"
+        'reuse_pdo' => true,
         'DEBUG' => true,
     );
 
@@ -110,20 +111,20 @@ class CFEDb2 {
             $config = static::$config;
         }
 
-        if( $config['_db_reuse_pdo'] && isset(static::$REUSE_PDO) && 'PDO' == get_class(static::$REUSE_PDO)){
+        if( $config['reuse_pdo'] && isset(static::$REUSE_PDO) && 'PDO' == get_class(static::$REUSE_PDO)){
             return static::$REUSE_PDO;
         }else{
             try {
-                if ($config['_db_type'] == 'sqlite') {
-                    $PDO = new \PDO("{$config['_db_type']}:{$config['_db_sv']}", '');
-                } elseif($config['_db_type'] == 'mysql') {
-                    $PDO = new \PDO("{$config['_db_type']}:host={$config['_db_sv']};dbname={$config['_db_name']}", $config['_db_user'], $config['_db_pass']);
+                if ($config['type'] == 'sqlite') {
+                    $PDO = new \PDO("{$config['type']}:{$config['dsn']}", '');
+                } elseif($config['type'] == 'mysql') {
+                    $PDO = new \PDO("{$config['type']}:{$config['dsn']}", $config['user'], $config['pass']);
                 } else {
                     throw new \PDOException('invalid db_type');
                 }
 
-                if($config['_db_pre_exec']) {
-                    $PDO->query($config['_db_pre_exec']);
+                if($config['pre_exec']) {
+                    $PDO->query($config['pre_exec']);
                 }
 
             } catch (\PDOException $e) {
@@ -132,7 +133,7 @@ class CFEDb2 {
             }
             $PDO->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION );
 
-            if($config['_db_reuse_pdo']){
+            if($config['reuse_pdo']){
                 static::$REUSE_PDO = $PDO;
             }
             return $PDO;
@@ -347,10 +348,10 @@ class CFEDb2 {
     }
 
     static function getRand() {
-        if (static::$config['_db_type'] == 'sqlite') {
+        if (static::$config['type'] == 'sqlite') {
             $rand_func_name = "random()";
-        } elseif(static::$config['_db_type'] == 'mysql') {
-            $rand_func_name = "random()";
+        } elseif(static::$config['type'] == 'mysql') {
+            $rand_func_name = "RAND()";
         } else {
             throw new \PDOException('invalid db_type');
         }
@@ -565,7 +566,7 @@ class CFEDb2 {
             if ($k == static::$pkeyname){
                 continue;
             }else if ('updated_at' == $k){
-                if(static::$config['_db_type'] == 'sqlite'){
+                if(static::$config['type'] == 'sqlite'){
                     $sql .= " ${k}=datetime('now', 'localtime'),";
                 }else{
                     $sql .= " ${k}=now(),";
@@ -593,7 +594,7 @@ class CFEDb2 {
                 continue;
 
             } else if ('created_at' == $k || 'updated_at' == $k) {
-                if(static::$config['_db_type'] == 'sqlite'){
+                if(static::$config['type'] == 'sqlite'){
                     $values[] = "datetime('now', 'localtime')";
                 }else{
                     $values[] = "now()";
