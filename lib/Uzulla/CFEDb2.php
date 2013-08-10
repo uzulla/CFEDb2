@@ -195,16 +195,19 @@ class CFEDb2 {
 
     static function simpleQueryOne($sql, $params, $PDO=null){
         $items = static::simpleQuery($sql, $params, $PDO);
+        if(empty($items)) return null;
         return $items[0];
     }
 
     static function getBySQL($sql, $params, $PDO=null) {
         $item = static::simpleQueryOne($sql, $params, $PDO);
+        if(empty($item)) return null;
         return static::getByHash($item);
     }
 
     static function getsBySQL($sql, $params, $PDO=null) {
         $items = static::simpleQuery($sql, $params, $PDO);
+        if(empty($items)) return null;
         return static::getsByHashList($items);
     }
 

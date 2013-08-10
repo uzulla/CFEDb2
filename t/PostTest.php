@@ -1,5 +1,6 @@
 <?php
 require_once '../example/Post.php';
+ini_set('error_log', __DIR__ . '/phperror.log');
 
 class PostTest extends PHPUnit_Framework_TestCase
 {
@@ -28,7 +29,7 @@ class PostTest extends PHPUnit_Framework_TestCase
         }else{
             \Uzulla\CFEDb2::$config = array(
                 'type'=> 'sqlite',
-                'dsn' => ':memory:',
+                'dsn' => 'test.db',//':memory:',
                 'user' => "",
                 'pass' => "",
                 'pre_exec' => false,
@@ -137,6 +138,9 @@ class PostTest extends PHPUnit_Framework_TestCase
     {
         $db = Post::getBySQL('select * from post where `id`=:id', array('id' => 1));
         $this->assertEquals(1, $db->val('id'));
+
+        $db = Post::getBySQL('select * from post where `id`=:id', array('id' => 999));
+        $this->assertEquals(null, $db);
     }
 
     public function testGetsBySQL()
@@ -145,6 +149,9 @@ class PostTest extends PHPUnit_Framework_TestCase
         $this->assertGreaterThan(1, count($db));
         $_db = $db[0];
         $this->assertGreaterThan(1, $_db->val('id'));
+
+        $db = Post::getsBySQL('select * from post where `id` > :id', array('id' => 9999));
+        $this->assertEquals(null, $db);
     }
 
 
