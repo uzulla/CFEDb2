@@ -302,6 +302,18 @@ class CFEDb2 {
         return $items[0];
     }
 
+    static function getHashBySQL($sql, $val, $PDO=null) {
+        $items = static::simpleQuery($sql, $val, $PDO);
+        if (empty($items)) {
+            return null;
+        }
+        return $items[0];
+    }
+
+    static function getsHashBySQL($sql, $val, $PDO=null) {
+        return static::simpleQuery($sql, $val, $PDO);
+    }
+
     static function getBySome($col, $val, $PDO=null) {
         $item = static::getHashBySome($col, $val, $PDO);
         if (empty($item)) {
@@ -452,6 +464,23 @@ class CFEDb2 {
                 $this->val('ip', $_SERVER['REMOTE_ADDR']);
             }elseif(isset($params[$k])){
                 $this->val($k, $params[$k]);
+            }
+        }
+    }
+
+    public function updateByHash($hash){
+        if(!is_array($hash)){
+            throw new \Exception('Must list');
+        }
+        foreach($this->values as $k=>$v){
+            if($k=='id' ||$k=='created_at' ||$k=='updated_at' ){
+                continue;
+            }elseif($k=='ua'){
+                $this->val('ua', $_SERVER['HTTP_USER_AGENT']);
+            }elseif($k=='ip'){
+                $this->val('ip', $_SERVER['REMOTE_ADDR']);
+            }elseif(isset($hash[$k])){
+                $this->val($k, $hash[$k]);
             }
         }
     }
