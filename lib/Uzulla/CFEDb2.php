@@ -140,21 +140,21 @@ class CFEDb2 {
         }
     }
 
-    public function transactionBegin($PDO=null){
+    public static function transactionBegin($PDO=null){
         if(is_null($PDO)){
             $PDO = static::getPDO();
         }
         $PDO->beginTransaction();
         return $PDO;
     }
-    public function transactionCommit($PDO=null){
+    public static function transactionCommit($PDO=null){
         if(is_null($PDO)){
             $PDO = static::getPDO();
         }
         $PDO->commit();
         return $PDO;
     }
-    public function transactionRollback($PDO=null){
+    public static function transactionRollback($PDO=null){
         if(is_null($PDO)){
             $PDO = static::getPDO();
         }
