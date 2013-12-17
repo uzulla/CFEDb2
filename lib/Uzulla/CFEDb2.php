@@ -162,7 +162,7 @@ class CFEDb2 {
         return $PDO;
     }
 
-    //配列になったCFEDb2のインスタンスを、普通のハッシュ配列に変換します。 
+    //配列になったCFEDb2のインスタンスを、普通のハッシュ配列に変換します。
     static function getsHashByList($item_list){
         if(!is_array($item_list)){
             return array();
@@ -185,12 +185,45 @@ class CFEDb2 {
         }
         try{
             $sth = $PDO->prepare($sql);
-            $sth->execute($params);
+            foreach($params as $p_key => $p_val){
+                if(is_int($p_val) || ctype_digit($p_val)){
+                    $sth->bindValue( ":{$p_key}", (int)$p_val, \PDO::PARAM_INT );
+                }else{
+                    $sth->bindValue( ":{$p_key}", $p_val, \PDO::PARAM_STR );
+                }
+            }
+            $sth->execute();
         } catch (\PDOException $e) {
             static::log(array("DB ERROR: simpleQuery",$e->getMessage(),$sql,$params,$e->errorInfo));
             throw new \Exception('DB ERROR: execute error');
         }
+        if(static::$config['DEBUG']){
+            static::log("simpleQuery debug output\nsql: {$sql} \n".print_r($params,1));
+        }
         return $sth->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    static function simpleExec($sql, $params, $PDO=null){
+        if(is_null($PDO)){
+            $PDO = static::getPDO();
+        }
+        try{
+            $sth = $PDO->prepare($sql);
+            foreach($params as $p_key => $p_val){
+                if(is_int($p_val) || ctype_digit($p_val)){
+                    $sth->bindValue( ":{$p_key}", (int)$p_val, \PDO::PARAM_INT );
+                }else{
+                    $sth->bindValue( ":{$p_key}", $p_val, \PDO::PARAM_STR );
+                }
+            }
+            $sth->execute();
+        } catch (\PDOException $e) {
+            static::log(array("DB ERROR: simpleQuery",$e->getMessage(),$sql,$params,$e->errorInfo));
+            throw new \Exception('DB ERROR: execute error');
+        }
+        if(static::$config['DEBUG']){
+            static::log("simpleQuery debug output\nsql: {$sql} \n".print_r($params,1));
+        }
     }
 
     static function simpleQueryOne($sql, $params, $PDO=null){
@@ -324,8 +357,8 @@ class CFEDb2 {
 
     static function getHashById($_key, $PDO=null) {
         $res = static::simpleQuery(
-            'SELECT * FROM ' . static::$tablename . ' WHERE ' . static::$pkeyname . ' = ? LIMIT 1',
-            array($_key),
+            'SELECT * FROM ' . static::$tablename . ' WHERE ' . static::$pkeyname . ' = :key LIMIT 1',
+            array('key'=>$_key),
             $PDO
         );
         if(empty($res)){

@@ -201,6 +201,25 @@ class PostTest extends PHPUnit_Framework_TestCase
         $this->assertEquals('Post', get_class($post));
     }
 
+    public function testExec()
+    {
+        Post::simpleExec(
+            'UPDATE post SET text=:text WHERE id=:id',
+            array('text'=>'updated', 'id'=>1)
+        );
+
+        $post = Post::getById(1);
+        $this->assertEquals($post->val('text'), 'updated');
+
+        Post::simpleExec(
+            'DELETE FROM post WHERE id=:id',
+            array('id'=>1)
+        );
+
+        $post = Post::getById(1);
+        $this->assertEquals($post, null);
+    }
+
     public function testGetRand()
     {
         $beforePost = Post::getRand();
@@ -298,6 +317,15 @@ class PostTest extends PHPUnit_Framework_TestCase
         $this->assertEquals(5, Post::countAll());
         $this->assertEquals(1, Post::countBySome('num', '10001'));
         $this->assertEquals(1, Post::countBySome(array('num', 'text'), array('10001', 'TEXT 1')));
+    }
+
+    public function testLimit()
+    {
+        $post_list = Post::simpleQuery('SELECT * FROM post', array());
+        $this->assertEquals(5, count($post_list));
+
+        $post_list = Post::simpleQuery('SELECT * FROM post LIMIT :limit', array('limit'=>3));
+        $this->assertEquals(3, count($post_list));
     }
 
 }
