@@ -6,18 +6,18 @@ class PostTest extends PHPUnit_Framework_TestCase
 {
     protected function setUp()
     {
-        if(isset($_SERVER['TEST_MYSQL_PERL_DSN'])){
+        if (isset($_SERVER['TEST_MYSQL_PERL_DSN'])) {
             //DBI:mysql:dbname=test;mysql_socket=/path/to/tmp/mysql.sock;user=root
             list($dsn, $path, $user) = preg_split('/;/', $_SERVER['TEST_MYSQL_PERL_DSN'], null, PREG_SPLIT_NO_EMPTY);
             $type = 'mysql';
-            $db_name  = preg_replace('/DBI:mysql:/', '', $dsn);
+            $db_name = preg_replace('/DBI:mysql:/', '', $dsn);
             $path = preg_replace('/mysql_socket/', 'unix_socket', $path);
             $dsn = "{$path};{$db_name}";
             $user = preg_replace('/user=/', '', $user);
             $pass = '';
 
             \Uzulla\CFEDb2::$config = array(
-                'type'=> $type,
+                'type' => $type,
                 //'dsn' => 'host=127.0.0.1;dbname=test',
                 'dsn' => $dsn,
                 'user' => $user,
@@ -25,28 +25,28 @@ class PostTest extends PHPUnit_Framework_TestCase
                 'pre_exec' => "SET NAMES UTF8",
                 'reuse_pdo' => true,
                 'DEBUG_BACKTRACE' => true, // enable backtrace log.
-                'log'=> null // psr-3 logger instance
+                'log' => null // psr-3 logger instance
             );
-        }else{
+        } else {
             \Uzulla\CFEDb2::$config = array(
-                'type'=> 'sqlite',
-                'dsn' => 'test.db',//':memory:',
+                'type' => 'sqlite',
+                'dsn' => 'test.db', //':memory:',
                 'user' => "",
                 'pass' => "",
                 'pre_exec' => false,
                 'reuse_pdo' => true,
                 'DEBUG_BACKTRACE' => true, // enable backtrace log.
-                'log'=> null // psr-3 logger instance
+                'log' => null // psr-3 logger instance
             );
         }
 
         try {
             $dbh = \Uzulla\CFEDb2::getPDO();
-            if(\Uzulla\CFEDb2::$config['type'] == 'mysql'){
+            if (\Uzulla\CFEDb2::$config['type'] == 'mysql') {
                 $sql = file_get_contents("init_mysql.sql");
-            }else if(\Uzulla\CFEDb2::$config['type'] == 'sqlite'){
+            } else if (\Uzulla\CFEDb2::$config['type'] == 'sqlite') {
                 $sql = file_get_contents("init.sql");
-            }else{
+            } else {
                 die('setup error: unknown type');
             }
 
@@ -208,7 +208,7 @@ class PostTest extends PHPUnit_Framework_TestCase
     {
         Post::simpleExec(
             'UPDATE post SET text=:text WHERE id=:id',
-            array('text'=>'updated', 'id'=>1)
+            array('text' => 'updated', 'id' => 1)
         );
 
         $post = Post::getById(1);
@@ -216,7 +216,7 @@ class PostTest extends PHPUnit_Framework_TestCase
 
         Post::simpleExec(
             'DELETE FROM post WHERE id=:id',
-            array('id'=>1)
+            array('id' => 1)
         );
 
         $post = Post::getById(1);
@@ -327,7 +327,7 @@ class PostTest extends PHPUnit_Framework_TestCase
         $post_list = Post::simpleQuery('SELECT * FROM post', array());
         $this->assertEquals(5, count($post_list));
 
-        $post_list = Post::simpleQuery('SELECT * FROM post LIMIT :limit', array('limit'=>3));
+        $post_list = Post::simpleQuery('SELECT * FROM post LIMIT :limit', array('limit' => 3));
         $this->assertEquals(3, count($post_list));
     }
 
