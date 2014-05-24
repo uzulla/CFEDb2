@@ -24,7 +24,8 @@ class PostTest extends PHPUnit_Framework_TestCase
                 'pass' => $pass,
                 'pre_exec' => "SET NAMES UTF8",
                 'reuse_pdo' => true,
-                'DEBUG' => true,
+                'DEBUG_BACKTRACE' => true, // enable backtrace log.
+                'log'=> null // psr-3 logger instance
             );
         }else{
             \Uzulla\CFEDb2::$config = array(
@@ -34,7 +35,8 @@ class PostTest extends PHPUnit_Framework_TestCase
                 'pass' => "",
                 'pre_exec' => false,
                 'reuse_pdo' => true,
-                'DEBUG' => true,
+                'DEBUG_BACKTRACE' => true, // enable backtrace log.
+                'log'=> null // psr-3 logger instance
             );
         }
 
@@ -91,7 +93,7 @@ class PostTest extends PHPUnit_Framework_TestCase
      */
     public function testSimpleQueryFail()
     {
-        $db = Post::simpleQuery('select bad sql * from post', array());
+        Post::simpleQuery('select bad sql * from post', array());
     }
 
     /**
@@ -123,7 +125,7 @@ class PostTest extends PHPUnit_Framework_TestCase
             '_db_reuse_pdo' => false,
             'DEBUG' => true,
         );
-        $PDO = Post::getPDO($config);
+        Post::getPDO($config);
     }
 
     public function testSimpleQueryOne()
@@ -147,6 +149,7 @@ class PostTest extends PHPUnit_Framework_TestCase
     {
         $db = Post::getsBySQL('select * from post where `id` > :id', array('id' => 1));
         $this->assertGreaterThan(1, count($db));
+        /** @var $_db \Uzulla\CFEDb2 */
         $_db = $db[0];
         $this->assertGreaterThan(1, $_db->val('id'));
 

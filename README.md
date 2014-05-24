@@ -1,12 +1,15 @@
 # CFEDb2
-PHP 5.3 以上向け、オレオレO/Rマッパーもどき
+オレオレO/Rマッパー
 
 
-## support DB
-PDO + mysql, PDO + sqlite3
+## REQUIRE
 
+- PDO
+- mysql or sqlite3
+- PHP>=5.3.x
 
 ## オレオレライブラリです
+
 ながれるようにチェーンでSqlをBuildするとか、Joinがすばらしくできるとか、そういうものはありません。
 設計の自由度もありません。
 昔ActiveRecordをつかって、ちゃっちゃっとモデルを作るのが楽だなーって思い、当時の理解で（パラダイムの変遷を理解せず）書いてます。
@@ -22,7 +25,8 @@ PDO + mysql, PDO + sqlite3
 という変わった人なら本ライブラリも良いかもしれません。
 
 
-## 典型的な使い方
+## SYNOPSIS
+
 ```
 $post = new Post();
 $post->val('text', 'this is text');
@@ -56,29 +60,21 @@ $post_list = Post::getsHashBySome('text', 'this is text');
 
 
 ## インストール
-DLして適当に配置する、
 
-または、Composerで
+DLして適当に配置する、または、Composerで
 ```
 {
-	"repositories": [
-		{
-			"type": "vcs",
-			"url": "https://github.com/uzulla/CFEDb2"
-		}
-	],
 	"require": {
-		"uzulla/cfedb2": "dev-master"
+		"uzulla/cfedb2": "*"
 	}
 }
 ```
-(まだバージョン番号降るような状態じゃないので、dev-master指定してください)
 
 
 ## モデルクラス例
 ```
 <?php
-require_once('../lib/Uzulla/CFEDb2.php'); # ComposerのAutoloaderをつかっているなら不要
+require_once('../lib/Uzulla/CFEDb2.php'); // ComposerのAutoloaderをつかっているなら不要
 
 class Post extends \Uzulla\CFEDb2{
     static $tablename = 'post';
@@ -104,46 +100,16 @@ class Post extends \Uzulla\CFEDb2{
 
 ```
 \Uzulla\CFEDb2::$config = array(
-    'type'=> 'sqlite',
-    'dsn' => 'sqlite_filename.db',
-    'user' => '',
-    'pass' => '',
-    'pre_exec' => '',
-    'reuse_pdo' => true,
-    'DEBUG' => true,
-);
-
-or
-
-\Uzulla\CFEDb2::$config = array(
     'type'=> 'mysql',
-    'dsn' => 'mysql_socket=/path/to/mysql.socket;dbname=test', //'dsn' => 'host=127.0.0.1;dbname=test',
-    'user' => 'user',
-    'pass' => 'pass',
-    'pre_exec' => "SET NAMES UTF8",
+    // 'type'=> 'sqlite',
+    'dsn' => 'host=127.0.0.1;dbname=test;charset=utf8mb4',
+    // 'dsn' => 'unix_socket=/tmp/mysql.sock;dbname=test',
+    // 'dsn' => __DIR__.'/sqlite.db',
+    'user' => "",
+    'pass' => "",
+    'pre_exec' => false,
     'reuse_pdo' => true,
-    'DEBUG' => true,
+    'DEBUG_BACKTRACE' => true, // or false, enable backtrace log.
+    'log'=> null // null will use error_log, Psr-3 logger instance(ex:monolog)
 );
 ```
-
-
-## 使わない方が無難です
-昔から使っているCFEDb（非公開）というライブラリがさすがに厳しくなってきたので、少し整理した上で、バックアップを兼ねてGithubに置きました。
-まだ使い込んでいないので、今後まだまだバグが出てくると思います。
-
-
-正直な所、これを使う人がいるとはおもえませんが、つかわないほうが良いでしょう。下記を見て人里に帰りましょう。
-
-
-## 世間一般的にまともであろうORM達
-[www.phpactiverecord.org](http://www.phpactiverecord.org/)
-
-[propelorm.org](http://propelorm.org/)
-
-[c9s/LazyRecord](https://github.com/c9s/LazyRecord)
-
-[nekoya/php-ganc](https://github.com/nekoya/php-ganc)
-
-[redbeanphp.com](http://redbeanphp.com/)
-
-[GitHub search](https://github.com/search?q=php+orm&ref=cmdform)

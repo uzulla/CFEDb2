@@ -2,32 +2,7 @@
 /*
  * CFEDb2
  * Author: uzulla <uzulla@himitsukichi.com>
- * 20100310 Sqlite 対応
- * 20110606 デバッグ追加 ForceInsert追加
- * 20110607 CFECsv連携追加
- * 20110609 getSomeColVal 追加
- * 20110703 getsHashBySQL追加
- * 20120112 sqlite3 now()support
- *          add validate
- * 20120208 IN Query関数追加
- * 20120208 マージをした
- * 20120208 $lastRowCount追加
- * 20120225 sGetById()
- * 20120716 simpleQueryの挙動修正（0行でもレスポンスをするように
- * 20120719 validateをもっと良く
- * 20120719 loadFromRequest()追加
- * 20130618 CFEDb2にフォーク、過去互換性放棄
- * 20130618 コード大改修、エラー周りを例外化、error_log化、Static化
- * 20130704 getsHashByListを追加
- * 20130706 validatorを拡張
- * 20130708 DB接続定義のやり方を大幅に変更
- *          CSV関連を削除
- *          リファクタリング
- *          コードを大幅にクリーンアップ、頻度の低い関数削除
- * 20130709 countBySome()を追加
- *          getHash*(), getsHash*()系を追加(Hashで取得できる)
- *          細々とリファクタリング
- * 20130724 コンフィグの互換性変更
+ * Site: https://github.com/uzulla/CFEDb2
  */
 
 namespace Uzulla;
@@ -36,12 +11,14 @@ class CFEDb2 {
     static $config = array(
         'type'=> 'mysql',
         'dsn' => 'host=127.0.0.1;dbname=test',
-        //'dsn' => 'unix_socket=/tmp/mysql.sock;dbname=test',
+        // 'dsn' => 'unix_socket=/tmp/mysql.sock;dbname=test',
+        // 'dsn' => __DIR__.'/sqlite.db',
         'user' => "",
         'pass' => "",
         'pre_exec' => false, // "SET NAMES UTF8"
         'reuse_pdo' => true,
-        'DEBUG' => true,
+        'DEBUG_BACKTRACE' => true, // enable backtrace log.
+        'log'=> null // psr-3 logger instance
     );
 
     static $REUSE_PDO = null;
@@ -54,12 +31,17 @@ class CFEDb2 {
         'colmn_name'=>array('require'=>true, 'regexp'=>'/\A.*@.*\..*\z/u','error_text'=>'colmn_name を正しく設定してください'), //サンプルなので、かならずオーバーライドすること
     );
 
-    static function log($message){
-        $config = static::$config;
+    static function log($message, $level="NOTICE"){
+        $log_str = "CFEDb2 LOG:{$level}:";
+        if(isset($_SERVER['REMOTE_ADDR'])){
+            $log_str .="IP:{$_SERVER['REMOTE_ADDR']}";
+        }else{
+            $log_str .="CLI";
+        }
 
-        $backtrace_str = '';
-        if($config['DEBUG']){
-            $backtrace_str .="\n -backtrace-";
+        $config = static::$config;
+        if($config['DEBUG_BACKTRACE']){
+            $backtrace_str ="\n-backtrace-";
 
             $bt = array_reverse(debug_backtrace());
             foreach ($bt as $i) {
@@ -76,29 +58,38 @@ class CFEDb2 {
                 } else {
                     $args_dump = "SEE UNDER";
                 }
-                $backtrace_str .= "\n {$filename} => {$function_name} : {$line} args({$args_dump}) / ";
+                $backtrace_str .= "\n>{$filename}({$line})::{$function_name}({$args_dump})";
             }
-            $backtrace_str .="\n --\n";
+            $log_str .= $backtrace_str;
         }
 
         if (is_array($message) || is_object($message)) {
-            $message = print_r($message, true);
+            $message = print_r($message, 1);
         }
 
-        if(isset($_SERVER['REMOTE_ADDR'])){
-            error_log("IP:{$_SERVER['REMOTE_ADDR']}{$backtrace_str} {$message}");
+        $log_str .= ":".$message;
+
+        /** @var $logger \Psr\Log\LoggerInterface PSR-3 */
+        $logger = CFEDb2::$config['log'];
+        if(is_null($logger)){
+            error_log($log_str);
         }else{
-            error_log("CLI{$backtrace_str} {$message}");
+            // 定数にしたい…
+            if($level==='DEBUG'){}
+            elseif($level==='INFO'){ $logger->info($log_str); }
+            elseif($level==='NOTICE'){ $logger->notice($log_str);}
+            elseif($level==='WARNING'){ $logger->warning($log_str);}
+            elseif($level==='ERROR'){$logger->error($log_str);}
+            elseif($level==='CRITICAL'){$logger->critical($log_str);}
+            else{$logger->emergency($log_str);} // ($level==='EMERGENCY')
         }
     }
     static function plog_tostr($o) {
         $str = '';
         if (is_array($o) || is_object($o)) {
-            $str .="{";
             foreach ($o as $k => $v) {
-                $str.=" [{$k}] => " . static::plog_tostr($v);
+                $str.="[{$k}]=>" . static::plog_tostr($v);
             }
-            $str .="}";
             return $str;
         } else {
             return "{$str}{$o},";
@@ -128,8 +119,8 @@ class CFEDb2 {
                 }
 
             } catch (\PDOException $e) {
-                static::log(array("DB ERROR: connect to db fail", $e->getMessage()));
-                throw new \Exception('DB ERROR: connect to db fail');
+                static::log("fail connect to DB:".$e->getMessage(), "ERROR");
+                throw new \Exception('DB ERROR: fail connect to DB');
             }
             $PDO->setAttribute( \PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION );
 
@@ -192,13 +183,11 @@ class CFEDb2 {
                     $sth->bindValue( ":{$p_key}", $p_val, \PDO::PARAM_STR );
                 }
             }
+            static::log("simpleQuery \nsql: {$sql} \n".print_r($params,1), "DEBUG");
             $sth->execute();
         } catch (\PDOException $e) {
-            static::log(array("DB ERROR: simpleQuery",$e->getMessage(),$sql,$params,$e->errorInfo));
+            static::log(array("simpleQuery",$e->getMessage(),$sql,$params,$e->errorInfo), "ERROR");
             throw new \Exception('DB ERROR: execute error');
-        }
-        if(static::$config['DEBUG']){
-            static::log("simpleQuery debug output\nsql: {$sql} \n".print_r($params,1));
         }
         return $sth->fetchAll(\PDO::FETCH_ASSOC);
     }
@@ -216,13 +205,11 @@ class CFEDb2 {
                     $sth->bindValue( ":{$p_key}", $p_val, \PDO::PARAM_STR );
                 }
             }
+            static::log("simpleExec \nsql: {$sql} \n".print_r($params,1), "DEBUG");
             $sth->execute();
         } catch (\PDOException $e) {
-            static::log(array("DB ERROR: simpleQuery",$e->getMessage(),$sql,$params,$e->errorInfo));
+            static::log(array("simpleExec",$e->getMessage(),$sql,$params,$e->errorInfo), "ERROR");
             throw new \Exception('DB ERROR: execute error');
-        }
-        if(static::$config['DEBUG']){
-            static::log("simpleQuery debug output\nsql: {$sql} \n".print_r($params,1));
         }
     }
 
@@ -418,18 +405,6 @@ class CFEDb2 {
         }
     }
 
-//エスケープが不十分に見えるのでDeprecated
-//    static function getsBySomeList($col, $val_list){
-//        $list = static::simpleQuery('SELECT * FROM '.static::$tablename.' WHERE `'.$col.'` IN :list ', array('list'=>static::buildINStr($val_list)) );
-//        return static::getsByHashList($list);
-//    }
-//    static function buildINStr($list){
-//        $in = '( ';
-//        $in .= join(',', $list);
-//        $in .= ' )';
-//        return $in;
-//    }
-
     //あるカラムで、複数の値(配列)を指定して、アイテムリストを取得する
     static function getsHashByColVals($col, $val_list, $PDO=null) {
         $inq = static::buildINQuery($val_list);
@@ -450,9 +425,6 @@ class CFEDb2 {
         return static::getsByHashList($items);
     }
 
-//    static function getsSomeColVal($list, $col){ //非推奨
-//        return static::getValuesByItemListAndColumnName($list, $col);
-//    }
     //アイテムリストから、カラム名を指定して、値の配列をフィルタ的に取り出す
     static function getValuesByItemListAndColumnName($list, $col){ /** @var \Uzulla\CFEDb2[] $list */
         $val_list = array();
@@ -560,8 +532,8 @@ class CFEDb2 {
         return $error_list;
     }
 
-    public function deleteItem() { //事前処理が必要な場合、ここに継承させる
-        return $this->_delete(static::$pkeyname, $this->values[static::$pkeyname]);
+    public function deleteItem($PDO=null) { //事前処理が必要な場合、ここに継承させる
+        return $this->_delete(static::$pkeyname, $this->values[static::$pkeyname], $PDO);
     }
     public function _delete($where_col, $where_val, $PDO = null) {
         if(is_null($PDO)){
@@ -576,10 +548,11 @@ class CFEDb2 {
             }
             $this->lastRowCount = $sth->rowCount();
         }catch(\PDOException $e){
-            static::log(array("DB ERROR: delete fail",$sql,$params,$e->errorInfo));
+            static::log(array("delete fail",$sql,$params,$e->errorInfo), "ERROR");
             throw new \Exception('DB ERROR: delete fail');
         }
         if($this->lastRowCount==0){
+            static::log(array("delete fail, item not found.",$sql,$params), "WARNING");
             throw new \Exception('DB ERROR: delete fail, item not found.');
         }
         return true;
@@ -604,14 +577,14 @@ class CFEDb2 {
             $state = $sth->execute($params);
             $this->lastRowCount = $sth->rowCount();
         }catch(\PDOException $e){
-            static::log(array("DB ERROR: save item fail",$e->getMessage(),$sql,$params,$e->errorInfo));
+            static::log(array("save item fail",$e->getMessage(),$sql,$params,$e->errorInfo), "ERROR");
             throw new \Exception('DB ERROR: save item fail');
         }
         $id = $PDO->lastInsertId();
 
         if ($state) {
             if ($isInsert && $id==0) { //  if you not set AUTO_INCREMENT=1, $id is 0... become fail.
-                static::log(array("DB ERROR: insert fail",$sql,$params));
+                static::log(array("insert fail",$sql,$params), "ERROR");
                 throw new \Exception('DB ERROR: insert fail');
             }
             if(!$isInsert){
@@ -621,6 +594,7 @@ class CFEDb2 {
             $this->values = $_tmp->values;
             return $this;
         } else {
+            static::log(array("save fail",$sql,$params), "ERROR");
             throw new \Exception('DB ERROR: save fail');
         }
     }
