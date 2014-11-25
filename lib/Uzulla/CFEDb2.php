@@ -196,7 +196,7 @@ class CFEDb2
         try {
             $sth = $PDO->prepare($sql);
             foreach ($params as $p_key => $p_val) {
-                if (is_int($p_val) || ctype_digit($p_val)) {
+                if (is_int($p_val)) {
                     $sth->bindValue(":{$p_key}", (int)$p_val, \PDO::PARAM_INT);
                 } else {
                     $sth->bindValue(":{$p_key}", $p_val, \PDO::PARAM_STR);
@@ -219,7 +219,7 @@ class CFEDb2
         try {
             $sth = $PDO->prepare($sql);
             foreach ($params as $p_key => $p_val) {
-                if (is_int($p_val) || ctype_digit($p_val)) {
+                if (is_int($p_val)) {
                     $sth->bindValue(":{$p_key}", (int)$p_val, \PDO::PARAM_INT);
                 } else {
                     $sth->bindValue(":{$p_key}", $p_val, \PDO::PARAM_STR);
