@@ -357,6 +357,28 @@ class CFEDb2
         return $items[0];
     }
 
+    static function getsBySomeWithOrder($col, $val, $order_col, $order_desc=false, $PDO = null)
+    {
+        $items = static::getsHashBySomeWithOrder($col, $val, $order_col, $order_desc, $PDO);
+        if (empty($items)) {
+            return null;
+        }
+        return static::getsByHashList($items);
+    }
+
+    static function getsHashBySomeWithOrder($col, $val, $order_col, $order_desc=false , $PDO = null)
+    {
+        $order_sql = ($order_desc) ? "DESC" : "ASC";
+        $items = static::simpleQuery(
+            "SELECT * FROM `" . static::$tablename . "` WHERE `{$col}` = :val ORDER BY :order_colmn_name {$order_sql}",
+            array('val' => $val, 'order_colmn_name'=> $order_col),
+            $PDO);
+        if (empty($items)) {
+            return null;
+        }
+        return $items;
+    }
+
     static function getHashBySQL($sql, $val, $PDO = null)
     {
         $items = static::simpleQuery($sql, $val, $PDO);
