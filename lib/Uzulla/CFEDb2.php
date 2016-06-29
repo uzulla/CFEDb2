@@ -368,11 +368,15 @@ class CFEDb2
 
     static function getsHashBySomeWithOrder($col, $val, $order_col, $order_desc=false , $PDO = null)
     {
-        $order_sql = ($order_desc) ? "DESC" : "ASC";
+        if(preg_match('|[^a-zA-Z0-9_]|u', $order_col)) throw new \Exception('invalid order col name');
+
+        $order_sql = ($order_desc) ? "ORDER BY {$order_col} DESC" : "ORDER BY {$order_col} ASC";
+
         $items = static::simpleQuery(
-            "SELECT * FROM `" . static::$tablename . "` WHERE `{$col}` = :val ORDER BY :order_colmn_name {$order_sql}",
-            array('val' => $val, 'order_colmn_name'=> $order_col),
+            "SELECT * FROM `" . static::$tablename . "` WHERE `{$col}` = :val {$order_sql}",
+            array('val' => $val),
             $PDO);
+
         if (empty($items)) {
             return null;
         }
